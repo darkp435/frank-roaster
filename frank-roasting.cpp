@@ -14,7 +14,7 @@ string roast_frank(int number_of_times) {
         poem += "HAHAHAHA!\n";
 
         --number_of_times;
-        poem += "I'LL ROAST YOU " + to_string(number_of_times) + " ANOTHER NUMBER OF TIMES!\n";
+        poem += "I'LL ROAST YOU " + to_string(number_of_times) + " MORE TIMES!\n";
     }
 
     return poem;
