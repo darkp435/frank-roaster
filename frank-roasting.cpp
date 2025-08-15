@@ -1,5 +1,7 @@
 #include <string>
-#include <random>
+#include <fstream>
+#include <iostream>
+#include "frank-roasting.hpp"
 
 using namespace std;
 
@@ -44,6 +46,7 @@ void write_file(string filename, const int amount) {
         out_file << "HA, HA, HA, HA, HA, HA, HA!\n";
         out_file << "\n";
         --amount;
+        
         out_file << "This\'ll repeat " << to_string(amount_left) << " more times!\n";
 
         if (amount_left == 0) {
