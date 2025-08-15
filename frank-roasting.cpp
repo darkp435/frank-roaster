@@ -45,16 +45,17 @@ void write_file(string filename, const int amount) {
         out_file << "Imagine not knowing how C++ pointers work\n";
         out_file << "HA, HA, HA, HA, HA, HA, HA!\n";
         out_file << "\n";
-        --amount;
+        --amount_left;
         
         out_file << "This\'ll repeat " << to_string(amount_left) << " more times!\n";
 
         if (amount_left == 0) {
-            outfile << "I've repeated this " + to_string(amount_left) + " times!\n";
+            out_file << "I've repeated this " + to_string(amount_left) + " times!\n";
         } else {
-            outfile << "This'll repeat " << to_string(amount_left) << " more times!\n";
+            out_file << "This'll repeat " << to_string(amount_left) << " more times!\n";
         }
-        poem += "\n";
+        
+        out_file << "\n";
     }
 
     out_file.close();
