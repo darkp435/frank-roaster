@@ -8,13 +8,13 @@ using namespace std;
 void parse_flags(
         const int argc,
         const char* argv[],
-        bool& is_verbose,
-        string* file_to_write,
+        Verbosity& verbosity,
+        string& file_to_write,
         int& roast_count
     ) {
     bool skip = false;
 
-    for (int i = 0; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (skip) {
             skip = false;
             continue;
@@ -22,11 +22,16 @@ void parse_flags(
 
         string arg = argv[i];
 
-        if (arg == "--verbose" || arg == "-v") {
-            is_verbose = true;
+        if (arg == "-v0") {
+            verbosity = Verbosity::LITTLE;
+        } else if (arg == "-v1") {
+            verbosity = Verbosity::MEDIUM;
+        } else if (arg == "-v2") {
+            verbosity = Verbosity::VERBOSE;
+        } else if (arg == "-v3") {
+            verbosity = Verbosity::MAXIMUM;
         } else if ((arg == "--output" || arg == "-o") && i + 1 < argc) {
-            string file = argv[i + 1];
-            file_to_write = &file;
+            file_to_write = argv[i + 1];
             skip = true;
         } else if (arg == "-h" || arg == "--help") {
             print_help();
@@ -42,15 +47,15 @@ void parse_flags(
     }
 }
 
-int main(int argc, char* argv[]) {
-    bool is_verbose = false;
-    string* file_to_write = nullptr;
+int main(int argc, const char* argv[]) {
+    Verbosity verbosity = Verbosity::MEDIUM;
+    string file_to_write = "";
     int roast_count = 0;
 
-    parse_flags(argc, argv, is_verbose, file_to_write, roast_count);
-    cout << roast_frank(roast_count, is_verbose);
+    parse_flags(argc, argv, verbosity, file_to_write, roast_count);
+    cout << roast_frank(roast_count, verbosity);
 
-    if (file_to_write != nullptr) {
-        write_file(*file_to_write, roast_count, is_verbose);
+    if (file_to_write != "") {
+        write_file(file_to_write, roast_count, verbosity);
     }
 }
