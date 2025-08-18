@@ -5,7 +5,7 @@
 
 using namespace std;
 
-string roast_frank(const int number_of_times) {
+string roast_frank(const int number_of_times, bool is_verbose) {
     int times_left = number_of_times;
     string poem;
 
@@ -13,6 +13,13 @@ string roast_frank(const int number_of_times) {
         poem += "Imagine not knowing how to use OOP\n";
         poem += "Imagine not knowing how C++ modules work\n";
         poem += "Imagine not knowing Lua\n";
+        if (is_verbose) {
+            poem += "Imagine not liking object-oriented programming\n";
+            poem += "Imagine not wanting to learn Lua\n";
+            poem += "Imagine writing a program that overflows on Linux\n";
+            poem += "Imagine having Linux and not using it\n";
+            poem += "Imagine not knowing how C++ pointers work\n";
+        }
         poem += "\n";
         poem += "HAHAHAHA!\n";
 
@@ -23,12 +30,13 @@ string roast_frank(const int number_of_times) {
         } else {
             poem += "I'LL ROAST YOU " + to_string(times_left) + " MORE TIMES!\n";
         }
+
         poem += "\n";
     }
     return poem;
 }
 
-void write_file(string filename, const int amount) {
+void write_file(string filename, const int amount, bool is_verbose) {
     ofstream out_file(filename);
 
     int amount_left = amount;
@@ -37,26 +45,7 @@ void write_file(string filename, const int amount) {
         cerr << "Error opening file, Frank has intervened!" << endl;
     }
 
-    while (amount_left > 0) {
-        out_file << "Imagine not liking object-oriented programming\n";
-        out_file << "Imagine not wanting to learn Lua\n";
-        out_file << "Imagine writing a program that overflows on Linux\n";
-        out_file << "Imagine having Linux and not using it\n";
-        out_file << "Imagine not knowing how C++ pointers work\n";
-        out_file << "HA, HA, HA, HA, HA, HA, HA!\n";
-        out_file << "\n";
-        --amount_left;
-        
-        out_file << "This\'ll repeat " << to_string(amount_left) << " more times!\n";
-
-        if (amount_left == 0) {
-            out_file << "I've repeated this " + to_string(amount_left) + " times!\n";
-        } else {
-            out_file << "This'll repeat " << to_string(amount_left) << " more times!\n";
-        }
-        
-        out_file << "\n";
-    }
-
+    out_file << roast_frank(amount, is_verbose);
+    out_file << "This is so good, it's even written to a file!";
     out_file.close();
 }

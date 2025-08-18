@@ -1,29 +1,56 @@
 #include <iostream>
+#include <string>
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 
 using namespace std;
 
+// If the program segfaults, it's probably here.
+void parse_flags(
+        const int argc,
+        const char* argv[],
+        bool& is_verbose,
+        string* file_to_write,
+        int& roast_count
+    ) {
+    bool skip = false;
+
+    for (int i = 0; i < argc; i++) {
+        if (skip) {
+            skip = false;
+            continue;
+        }
+
+        string arg = argv[i];
+
+        if (arg == "--verbose" || arg == "-v") {
+            is_verbose = true;
+        } else if ((arg == "--output" || arg == "-o") && i + 1 < argc) {
+            string file = argv[i + 1];
+            file_to_write = &file;
+            skip = true;
+        } else if (arg == "-h" || arg == "--help") {
+            print_help();
+            exit(0);
+        } else {
+            try {
+                roast_count += stoi(argv[i]);
+            } catch (const invalid_argument& error) {
+                print_help();
+                exit(0);
+            }
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
-    int roast_count;
+    bool is_verbose = false;
+    string* file_to_write = nullptr;
+    int roast_count = 0;
 
-    if (argc < 2) { return 0; }
+    parse_flags(argc, argv, is_verbose, file_to_write, roast_count);
+    cout << roast_frank(roast_count, is_verbose);
 
-    try {
-        roast_count = stoi(argv[1]);
-    } catch (const invalid_argument& error) {
-        cout << "Usage: ROASTS FRANK!!!!" << endl;
-        cout << "Argument 1: number of times you want to roast him" << endl;
-        cout << "Argument 2: add '--verbose' to enhance the roast AND write it to file specified in argument 3";
-        cout << "Argument 3: if argument 2 is '--verbose', also writes the output to that file";
-        cout << "HAVE FUN! >:)" << endl;
-
-        return 0;
+    if (file_to_write != nullptr) {
+        write_file(*file_to_write, roast_count, is_verbose);
     }
-
-    if (argc < 3 || argv[2] != "--verbose") {
-        return 0;
-    }
-
-    write_file(argv[3], roast_count);
-    cout << roast_frank(roast_count);
 }
