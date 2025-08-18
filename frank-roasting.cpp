@@ -30,7 +30,7 @@ string roast_frank(const int number_of_times, Verbosity verbosity) {
 
         --times_left;
 
-        if (verbosity != Verbosity::MEDIUM) {
+        if (verbosity != Verbosity::LITTLE) {
             if (times_left == 0) {
                 poem += "I'VE JUST ROASTED YOU " + to_string(number_of_times) + " TIMES!\n";
             } else {
