@@ -61,6 +61,7 @@ void print_help() {
     cout << "Usage: ROASTS FRANK!!!!" << endl;
     cout << endl;
     cout << "Source code on GitHub (https://github.com/darkp435/frank-roaster)" << endl;
+    cout << "Note: this is a joke program, Frank didn't actually do anything bad." << endl;
     cout << "Invalid arguments also prints this message." << endl;
     cout << "Enter a number to add it to the number of times you want to roast Frank (starts at 0)" << endl;
     cout << "Flags:" << endl;
@@ -69,4 +70,5 @@ void print_help() {
     cout << "  -v2   Roasts Frank, but with MAXIMUM VERBOSITY (highly recommended)" << endl;
     cout << "  -h    Prints this" << endl;
     cout << "  -o    Specify output file to print the roast to it" << endl;
+    cout << "  -j    Just prints the roast and/or writes to file, do not enter main program loop" << endl;
 }

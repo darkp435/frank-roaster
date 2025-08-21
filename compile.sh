@@ -1,1 +1,1 @@
-g++ main.cpp frank-roasting.cpp -o main
+g++ main.cpp frank-roasting.cpp -o roast-frank
