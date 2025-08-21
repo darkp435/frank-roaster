@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include "blackjack.hpp"
+#include "frank-roasting.hpp"
 
 using namespace std;
 
@@ -18,6 +19,7 @@ string format_hand(vector<char>& hand) {
     return list;
 }
 
+// Should only be used by starting 2 cards.
 int find_ace_index(vector<char>& hand) {
     if (hand[0] == 'A') {
         return 0;
@@ -29,16 +31,30 @@ int find_ace_index(vector<char>& hand) {
     }
 }
 
-void print_help() {
-    cout << "=== BLACKJACK RULES ===" << endl;
-    cout << "When it's your turn, you could either hit (draw another card) or stand (end your turn)." << endl;
+void help() {
+    print("=== BLACKJACK RULES ===");
+    print();
+    print("When it's your turn, you could either hit (draw another card) or stand (end your turn).");
+    print("Each card has a value, and if the total value of all your cards exceed 21, you bust (lose).");
+    print("Cards 2-10 have the same value as the card rank (e.g. card 2 is worth 2). Jack (J), Queen (Q) and King (K) are all worth 10.");
+    print("Ace is worth either 1 or 11 of your choice");
+    print();
+    print("There are 4 ways to win:");
+    print("1. Have your total value be exactly 21 (blackjack)");
+    print("2. Have 5 cards (also blackjack)");
+    print("3. Beat the dealer in value");
+    print("4. The dealer busts");
+    print();
+    print("When it's your turn, you could either hit (draw another card) or stand (end your turn)");
+    print("It's your turn until you either stand, or you bust.");
+    // TODO: write the instructions later
 }
 
 // Returns 1 to increase value by 11, and returns 2 to increase value by 1.
 int handle_ace_input() {
     int ace_choice;
-    cout << "1. 11" << endl;
-    cout << "2. 1" << endl;
+    print("1. 11");
+    print("2. 1");
     cin >> ace_choice;
 
     if (ace_choice != 1 || ace_choice != 2) {
@@ -49,8 +65,9 @@ int handle_ace_input() {
 }
 
 void print_player_win(bool hit_blackjack) {
-    cout << "You hit a blackjack! You won!" << endl;
-    cout << "Frank could never win! Good game." << endl;
+    print("You hit blackjack! You won!");
+    print("=== YOU WON! === ");
+    print("Frank could never win! Good game.");
 }
 
 void print_player_win() {
@@ -257,12 +274,30 @@ void start_blackjack_game() {
                 break;
             }
             case 3: {
-                print_help();
+                help();
                 break;
             }
             default: {
-                print_help();
+                help();
             }
         }
+    }
+
+    // Dealer's turn. If the player busted, it should've returned by now.
+    if (player.size() == 5) {
+        print("You have 5 cards, which is blackjack!");
+        print_player_win();
+        return;
+    }
+
+    print("It is now the dealer's turn.");
+    print("Your final cards before you decided to stand: " + format_hand(player));
+    print("The dealer's face down card is now revealed.");
+    print("Dealer's hand: " + format_hand(dealer));
+    print("The dealer will keep hitting until they either stand on 17 or above, they bust, or they blackjack.");
+    bool dealer_stand;
+
+    while (dealer.size() < 5 && !dealer_stand) {
+        // Placeholder
     }
 }

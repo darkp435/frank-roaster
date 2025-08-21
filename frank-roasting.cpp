@@ -57,10 +57,10 @@ void write_file(string filename, const int amount, Verbosity verbosity) {
     out_file.close();
 }
 
-void print_help() {
-    cout << "Usage: ROASTS FRANK!!!!" << endl;
-    cout << endl;
-    cout << "Source code on GitHub (https://github.com/darkp435/frank-roaster)" << endl;
+void help() {
+    print("Usage: ROASTS FRANK!!!!");
+    print();
+    print("Source code on GitHub (https://github.com/darkp435/frank-roaster)");
     cout << "Note: this is a joke program, Frank didn't actually do anything bad." << endl;
     cout << "Invalid arguments also prints this message." << endl;
     cout << "Enter a number to add it to the number of times you want to roast Frank (starts at 0)" << endl;

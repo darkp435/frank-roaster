@@ -47,7 +47,7 @@ void parse_flags(
             file_to_write = argv[i + 1];
             skip = true;
         } else if (arg == "-h" || arg == "--help") {
-            print_help();
+            help();
             exit(0);
         } else if (arg == "-j" || arg == "--just-print") {
             just_print = true;
@@ -55,7 +55,7 @@ void parse_flags(
             try {
                 roast_count += stoi(argv[i]);
             } catch (const invalid_argument& error) {
-                print_help();
+                help();
                 exit(0);
             }
         }
