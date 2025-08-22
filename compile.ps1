@@ -1,1 +1,0 @@
-g++ main.cpp frank-roasting.cpp -o main.exe
