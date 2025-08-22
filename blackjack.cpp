@@ -1,12 +1,41 @@
+// NOTE: DO NOT INCLUDE THE <print> HEADER. IT IS DEATH BECAUSE THERE'S ALREADY A PRINT DEFINITION. YOU ALSO
+// DON'T NEED TO, JUST USE THE CUSTOM INLINE PRINT FUNCTION LOCATED IN "frank-roasting.hpp".
 #include <random>
 #include <iostream>
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unistd.h>
 #include "blackjack.hpp"
 #include "frank-roasting.hpp"
 
+#ifdef __linux__
+extern "C" {
+    #include <gtk/gtk.h>
+}
+#endif /* __linux__ */
+
+#define ANSI_YELLOW  "\033[33m"
+#define ANSI_RED     "\033[31m"
+#define ANSI_DEFAULT "\033[0m"
+#define ANSI_GREEN   "\033[32m"
+#define ANSI_BOLD    "\033[1m"
+
 using namespace std;
+
+enum class WinType {
+    BLACKJACK,
+    FIVE_CARD,
+    BEAT_DEALER,
+    DEALER_BUST
+};
+
+enum class LoseType {
+    DEALER_BLACKJACK,
+    BUST,
+    LOST_TO_DEALER,
+    DEALER_FIVE_CARD
+};
 
 string format_hand(vector<char>& hand) {
     string list(1, hand[0]);
@@ -32,7 +61,7 @@ int find_ace_index(vector<char>& hand) {
 }
 
 void help() {
-    print("=== BLACKJACK RULES ===");
+    print(ANSI_BOLD "=== BLACKJACK RULES ===" ANSI_DEFAULT);
     print();
     print("When it's your turn, you could either hit (draw another card) or stand (end your turn).");
     print("Each card has a value, and if the total value of all your cards exceed 21, you bust (lose).");
@@ -64,22 +93,41 @@ int handle_ace_input() {
     return ace_choice;
 }
 
+void print_player_win(WinType win_type) {
+    print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
+    switch (win_type) {
+        case WinType::BEAT_DEALER:
+            print("You won by beating the dealer!");
+            print("Frank could never win by beating the dealer!");
+            break;
+        case WinType::BLACKJACK:
+            print("You won because you hit blackjack");
+            break;
+        case WinType::DEALER_BUST:
+            break;
+        case WinType::FIVE_CARD:
+            break;
+    }
+}
+
 void print_player_win(bool hit_blackjack) {
-    print("You hit blackjack! You won!");
-    print("=== YOU WON! === ");
+    print("You hit blackjack!");
+    print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
     print("Frank could never win! Good game.");
 }
 
 void print_player_win() {
-    cout << "You beat the dealer! You won!" << endl;
-    cout << "Frank could never win by beating the dealer!" << endl;
-    cout << "Good game." << endl;
+    print("You beat the dealer!");
+    print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
+    print("Frank could never win by beating the dealer!");
+    print("Good game.");
 }
 
 void print_player_lose(int value) {
-    cout << "You lost. You busted. Your final value was " << to_string(value) << ", which is greater than 21." << endl;
-    cout << "At least you played better than Frank would've..." << endl;
-    cout << "Good game." << endl;
+    print("You lost. You busted. Your final value was " + to_string(value) + ", which is greater than 21.");
+    print(ANSI_YELLOW "=== GAME OVER ===" ANSI_DEFAULT);
+    print("At least you played better than Frank would've...");
+    print("Good game.");
 }
 
 void print_player_lose() {
@@ -146,8 +194,8 @@ void start_blackjack_game() {
     player.push_back(draw_card(deck));
     player.push_back(draw_card(deck));
 
-    cout << "Dealer's face-up card: " << dealer[0] << endl;
-    cout << "Your cards: " << player[0] << ", " << player[1] << endl;
+    print("Dealer's face-up card: " + dealer[0]); // Dealer has one hole card
+    print("Your cards: " + format_hand(player));
 
     if ((player[0] == 'A' && VALUES[player[1]] == 10) || (player[1] == 'A' && VALUES[player[0]] == 10)) {
         // Automatically blackjack, player wins
@@ -174,15 +222,15 @@ void start_blackjack_game() {
     }
 
     if (player[0] == 'A' && player[1] == 'A') {
-        cout << "You have 2 Ace cards at the start. What do you want the first one to be? (default: option 1)" << endl;
+        print("You have 2 Ace cards at the start. What do you want the first one to be? (default: option 1)");
         ace_choice = handle_ace_input();
         if (ace_choice == 1) {
-            cout << "Since you chose it to be 11, your second Ace will be 1 because otherwise you will bust." << endl;
+            print("Since you chose it to be 11, your second Ace will be 1 because otherwise you will bust.");
             player_value = 12;
         } else {
-            cout << "You chose it to be worth 1. What do you want the second Ace to be? (default: option 1)" << endl;
+            print("You chose it to be worth 1. What do you want the second Ace to be? (default: option 1)");
             ace_choice = handle_ace_input();
-            cout << "Okay." << endl;
+            print("Okay.");
 
             if (ace_choice == 1) {
                 player_value = 12; // Ace is 11
@@ -192,9 +240,9 @@ void start_blackjack_game() {
         }
     } else {
         if (find_ace_index(player) == 0 || find_ace_index(player) == 1) {
-            cout << "Your starting hand has an Ace. What do you want it to be? (default: option 1)" << endl;
+            print("Your starting hand contains an Ace. What do you want it to be? (default: option 1)");
             ace_choice = handle_ace_input();
-            cout << "Okay." << endl;
+            print("Okay.");
 
             // Ace is 11
             if (ace_choice == 1) {
@@ -220,21 +268,21 @@ void start_blackjack_game() {
 
     while (player.size() < 5 && !stand) {
         int choice;
-        cout << "Your hand: " << format_hand(player) << endl;
-        cout << "Options:" << endl;
-        cout << "1. Hit" << endl;
-        cout << "2. Stand" << endl;
-        cout << "3. Help" << endl;
-        cout << "(Input the option number), default is 3." << endl;
+        print("Your hand: " + format_hand(player));
+        print("Options:");
+        print("1. Hit");
+        print("2. Stand");
+        print("3. Help");
+        print("(Input the option number), default is 3.");
         cin >> choice;
         
         switch (choice) {
             case 1: {
                 char card = draw_card(deck);
                 if (card == 'A' && player_value + 11 < 21) {
-                    cout << "You drew an A. What do you want it to be? (default: option 1)" << endl;
+                    print("You drew an A. What do you want it to be? (default: option 1)");
                     ace_choice = handle_ace_input();
-                    cout << "Okay." << endl;
+                    print("Okay.");
                     if (ace_choice == 1) {
                         player_value += 11;
                     } else {
@@ -246,10 +294,10 @@ void start_blackjack_game() {
                     return;
                 // If they choose 11, they bust, so it's automatically 1
                 } else if (card == 'A' && player_value + 11 > 21) {
-                    cout << "You drew an A. If you chose the A to be 11, you bust, so A is 1." << endl;
+                    print("You drew an A. If you chose the A to be 11, you bust, so A is 1.");
                     player_value += 1;
                 } else {
-                    cout << "You drew a " << card << ".";
+                    print("You drew a " + string(1, card) + ".");
                     player_value += VALUES[card];
                 }
 
@@ -262,14 +310,15 @@ void start_blackjack_game() {
                     print_player_win(true);
                     return;
                 } else {
-                    cout << "You did not bust. You are playing better than Frank." << endl;
+                    print(ANSI_GREEN "You did not bust." ANSI_DEFAULT);
+                    print("You are playing better than Frank.");
                     player.push_back(card);
                 }
 
                 break;
             }
             case 2: {
-                cout << "You chose to stand! Frank would've lost by now..." << endl;
+                print("You chose to stand! Frank would've lost by now...");
                 stand = true;
                 break;
             }
@@ -285,19 +334,23 @@ void start_blackjack_game() {
 
     // Dealer's turn. If the player busted, it should've returned by now.
     if (player.size() == 5) {
-        print("You have 5 cards, which is blackjack!");
+        print("You have 5 cards, blackjack!");
         print_player_win();
         return;
     }
 
-    print("It is now the dealer's turn.");
+    print(ANSI_BOLD "It is now the dealer's turn." ANSI_DEFAULT);
     print("Your final cards before you decided to stand: " + format_hand(player));
     print("The dealer's face down card is now revealed.");
     print("Dealer's hand: " + format_hand(dealer));
     print("The dealer will keep hitting until they either stand on 17 or above, they bust, or they blackjack.");
-    bool dealer_stand;
 
-    while (dealer.size() < 5 && !dealer_stand) {
-        // Placeholder
+    // Dealer must draw until they hit 17 or higher
+    while (dealer.size() < 5 && dealer_value < 17) {
+        char card = draw_card(deck);
+        // Dealer busts, player wins
+        if (card == 'A' && dealer_value + 11 > 21) {
+
+        }
     }
 }
