@@ -5,25 +5,43 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <unistd.h>
 #include "blackjack.hpp"
 #include "frank-roasting.hpp"
 
+// Linux - POSIX compliant and can use GTK framework
 #ifdef __linux__
 extern "C" {
     #include <gtk/gtk.h>
 }
+#include <unistd.h>
+#define SLEEP_AMOUNT 3
 #endif /* __linux__ */
+
+// MacOS - POSIX compliant
+#ifdef __APPLE__
+#include <unistd.h>
+#define SLEEP_AMOUNT 3
+#endif /* __APPLE__ */
+
+// Windows - not POSIX compliant
+#ifdef _WIN32
+#include <windows.h>
+#define SLEEP_AMOUNT 3000
+// Unified sleep interface (kind of)
+#define sleep Sleep
+#endif /* _WIN32 */
 
 #define ANSI_YELLOW  "\033[33m"
 #define ANSI_RED     "\033[31m"
 #define ANSI_DEFAULT "\033[0m"
 #define ANSI_GREEN   "\033[32m"
 #define ANSI_BOLD    "\033[1m"
+#define ANSI_BLUE    "\033[34m"
 
 using namespace std;
 
 enum class WinType {
+    STARTING_BLACKJACK,
     BLACKJACK,
     FIVE_CARD,
     BEAT_DEALER,
@@ -96,42 +114,62 @@ int handle_ace_input() {
 void print_player_win(WinType win_type) {
     print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
     switch (win_type) {
+        case WinType::STARTING_BLACKJACK:
+            print("Lucky! You had a blackjack at the start!");
+            print("That's something Frank would ever dream of.");
+            break;
         case WinType::BEAT_DEALER:
             print("You won by beating the dealer!");
             print("Frank could never win by beating the dealer!");
             break;
         case WinType::BLACKJACK:
             print("You won because you hit blackjack");
+            print("Frank could only ever dream of hitting blackjack!");
             break;
         case WinType::DEALER_BUST:
+            print("The dealer was Frank. He ended up busting.");
+            print("That means you won because he busted! Congrats!");
             break;
         case WinType::FIVE_CARD:
+            print("You got 5 cards, which means that you automatically win!");
+            print("Victory! Frank could never win!");
             break;
     }
 }
 
-void print_player_win(bool hit_blackjack) {
-    print("You hit blackjack!");
-    print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
-    print("Frank could never win! Good game.");
-}
-
-void print_player_win() {
-    print("You beat the dealer!");
-    print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
-    print("Frank could never win by beating the dealer!");
-    print("Good game.");
-}
-
-void print_player_lose(int value) {
-    print("You lost. You busted. Your final value was " + to_string(value) + ", which is greater than 21.");
+void print_player_lose(LoseType lose_type, int player_value, int dealer_value) {
     print(ANSI_YELLOW "=== GAME OVER ===" ANSI_DEFAULT);
-    print("At least you played better than Frank would've...");
-    print("Good game.");
+
+    switch (lose_type) {
+        case LoseType::BUST:
+            print("You busted. Your final value was greater than 21.");
+            print("At least you played better than Frank would've...");
+            break;
+        case LoseType::DEALER_BLACKJACK:
+            print("Unfortunately for you, the dealer got a blackjack.");
+            print("Better luck next time. Frank would've done worse.");
+            break;
+        case LoseType::DEALER_FIVE_CARD:
+            print("Unlucky. The dealer had 5 cards.");
+            print("You still did better than Frank though.");
+            break;
+        case LoseType::LOST_TO_DEALER:
+            print("The dealer had a higher value than you.");
+            print("However, if it was Frank, he would've busted.");
+            break;
+    }
+
+    print();
+    print(ANSI_BOLD "=== RESULTS ===");
+    print("Dealer value: " + to_string(dealer_value));
+    print("Your value: " + to_string(player_value));
 }
 
-void print_player_lose() {
-
+void print_player_push() {
+    print(ANSI_BLUE "=== PUSH ===" ANSI_DEFAULT);
+    print("It is a push (nobody won) because you and the dealer tied in value.");
+    print("If you think that's bad, remember that Frank would've lost!");
+    print("Good game.");
 }
 
 inline void remove_el(vector<char>& deck, int index) {
@@ -197,12 +235,6 @@ void start_blackjack_game() {
     print("Dealer's face-up card: " + dealer[0]); // Dealer has one hole card
     print("Your cards: " + format_hand(player));
 
-    if ((player[0] == 'A' && VALUES[player[1]] == 10) || (player[1] == 'A' && VALUES[player[0]] == 10)) {
-        // Automatically blackjack, player wins
-        print_player_win(true);
-        return;
-    }
-
     int dealer_value;
     int player_value;
     int ace_choice;
@@ -263,6 +295,10 @@ void start_blackjack_game() {
         }
     }
     // END OF NESTED SPAGHETTI IF STATEMENT BLOCK
+    if (player_value == 21) {
+        print_player_win(WinType::STARTING_BLACKJACK);
+        return;
+    }
 
     bool stand = false;
 
@@ -290,7 +326,7 @@ void start_blackjack_game() {
                     }
                 // Blackjack (win)
                 } else if (card == 'A' && player_value + 11 == 21) {
-                    print_player_win(true);
+                    print_player_win(WinType::BLACKJACK);
                     return;
                 // If they choose 11, they bust, so it's automatically 1
                 } else if (card == 'A' && player_value + 11 > 21) {
@@ -303,11 +339,11 @@ void start_blackjack_game() {
 
                 // Bust (lose)
                 if (player_value > 21) {
-                    print_player_lose(player_value);
+                    print_player_lose(LoseType::BUST, player_value, dealer_value);
                     return;
                 // Blackjack (win)
                 } else if (player_value == 21) {
-                    print_player_win(true);
+                    print_player_win(WinType::BLACKJACK);
                     return;
                 } else {
                     print(ANSI_GREEN "You did not bust." ANSI_DEFAULT);
@@ -335,7 +371,7 @@ void start_blackjack_game() {
     // Dealer's turn. If the player busted, it should've returned by now.
     if (player.size() == 5) {
         print("You have 5 cards, blackjack!");
-        print_player_win();
+        print_player_win(WinType::FIVE_CARD);
         return;
     }
 
@@ -345,12 +381,53 @@ void start_blackjack_game() {
     print("Dealer's hand: " + format_hand(dealer));
     print("The dealer will keep hitting until they either stand on 17 or above, they bust, or they blackjack.");
 
-    // Dealer must draw until they hit 17 or higher
+    // Dealer must hit until they hit 17 or higher
     while (dealer.size() < 5 && dealer_value < 17) {
+        print("The dealer draws a card...");
         char card = draw_card(deck);
-        // Dealer busts, player wins
+        sleep(SLEEP_AMOUNT);
+        // If Ace being 11 makes the dealer bust
         if (card == 'A' && dealer_value + 11 > 21) {
-
+            print("The dealer draws an A! The value is 1, because if it's 11, the dealer would bust.");
+            dealer_value += 1;
+        // Dealer blackjack, player loses
+        } else if (card == 'A' && dealer_value + 11 == 21) {
+            dealer_value += 11;
+            print_player_lose(LoseType::DEALER_BLACKJACK, player_value, dealer_value);
+            return;
+        // Dealer value increases by 11
+        } else if (card == 'A' && dealer_value + 11 < 21) {
+            print("The dealer draws an A! The value is 11 because they won't bust if it's 11.");
+            dealer_value += 11;
+        // Not an Ace
+        } else {
+            dealer_value += VALUES[card];
         }
+
+        // Bust
+        if (dealer_value > 21) {
+            print_player_win(WinType::DEALER_BUST);
+            return;
+        // Blackjack
+        } else if (dealer_value == 21) {
+            print_player_lose(LoseType::DEALER_BLACKJACK, dealer_value, player_value);
+            return;
+        } else {
+            print("The dealer did not bust.");
+            dealer.push_back(card);
+            print("Dealer's hand: " + format_hand(dealer));
+        }
+    }
+
+    // Final results. By now, the dealer has a 17+ value.
+    // Dealer wins (has more value than player)
+    if (dealer_value > player_value) {
+        print_player_lose(LoseType::LOST_TO_DEALER, player_value, dealer_value);
+    // Push (tie)
+    } else if (dealer_value == player_value) {
+        print_player_push();
+    // Player wins - beat dealer
+    } else {
+        print_player_win(WinType::BEAT_DEALER);
     }
 }
