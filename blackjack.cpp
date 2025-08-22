@@ -78,7 +78,7 @@ int find_ace_index(vector<char>& hand) {
     }
 }
 
-void help() {
+void print_help() {
     print(ANSI_BOLD "=== BLACKJACK RULES ===" ANSI_DEFAULT);
     print();
     print("When it's your turn, you could either hit (draw another card) or stand (end your turn).");
@@ -359,11 +359,11 @@ void start_blackjack_game() {
                 break;
             }
             case 3: {
-                help();
+                print_help();
                 break;
             }
             default: {
-                help();
+                print_help();
             }
         }
     }

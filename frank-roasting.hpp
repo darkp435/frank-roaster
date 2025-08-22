@@ -11,7 +11,7 @@ enum class Verbosity {
 
 // Roasts Frank the given number of times with given verbosity. Maximum verbosity is recommended.
 std::string roast_frank(int number_of_times, Verbosity verbosity);
-void write_file(string filename, int amount, Verbosity verbosity);
+void write_file(std::string filename, int amount, Verbosity verbosity);
 void help();
 // I'm way too lazy to make this in a separate header.
 
