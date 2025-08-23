@@ -3,6 +3,16 @@
 #include "blackjack.hpp"
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 
+#ifdef _WIN32
+#include <windows.h>
+#endif /* _WIN32 */
+
+#ifdef __linux__
+extern "C" {
+    #include <gtk/gtk.h>
+}
+#endif /* __linux__ */
+
 using namespace std;
 
 void interpret_command(string& command) {
@@ -68,6 +78,51 @@ void print_loop_help() {
     cout << "Enter 'exit' to exit the program with a message that roasts Frank" << endl;
 }
 
+#ifdef _WIN32
+LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    switch (uMsg) {
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+    }
+
+    return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) {
+    const char CLASS_NAME[] = "MainWindowClass";
+    WNDCLASS window_class = {0};
+    window_class.lpfnWndProc = WindowProc;
+    window_class.hInstance = hInstance;
+    window_class.lpszClassName = "Main";
+    RegisterClass(&window_class);
+
+    HWND hwnd = CreateWindowExA(
+        0,
+        CLASS_NAME,
+        "Main",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        400,
+        400,
+        NULL,
+        NULL,
+        hInstance,
+        NULL
+    );
+
+    ShowWindow(hwnd, nCmdShow);
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessageA(&msg);
+    }
+    
+    return 0;
+}
+#else
 int main(int argc, const char* argv[]) {
     Verbosity verbosity = Verbosity::MEDIUM;
     string file_to_write = "";
@@ -93,3 +148,4 @@ int main(int argc, const char* argv[]) {
         interpret_command(option);
     }
 }
+#endif

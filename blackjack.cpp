@@ -60,7 +60,12 @@ string format_hand(vector<char>& hand) {
 
     // Ignore the first one, it was already in the constructor
     for (int i = 1; i < hand.size(); i++) {
-        list += ", " + string(1, hand[i]);
+        if (hand[i] == '0') {
+            // 0 is actually 10 due to char limitations, so print 10 instead of 0
+            list += ", 10";
+        } else {
+            list += ", " + string(1, hand[i]);
+        }
     }
 
     return list;
@@ -97,18 +102,21 @@ void print_help() {
     // TODO: write the instructions later
 }
 
-// Returns 1 to increase value by 11, and returns 2 to increase value by 1.
+// Returns the value of Ace that the player chose.
 int handle_ace_input() {
     int ace_choice;
     print("1. 11");
     print("2. 1");
     cin >> ace_choice;
 
-    if (ace_choice != 1 || ace_choice != 2) {
-        return 1;
+    switch (ace_choice) {
+        case 1:
+            return 11;
+        case 2:
+            return 1;
+        default:
+            return 11;
     }
-
-    return ace_choice;
 }
 
 void print_player_win(WinType win_type) {
@@ -160,7 +168,7 @@ void print_player_lose(LoseType lose_type, int player_value, int dealer_value) {
     }
 
     print();
-    print(ANSI_BOLD "=== RESULTS ===");
+    print(ANSI_BOLD "=== RESULTS ===" ANSI_DEFAULT);
     print("Dealer value: " + to_string(dealer_value));
     print("Your value: " + to_string(player_value));
 }
@@ -184,7 +192,7 @@ int randint(int high) {
 }
 
 char draw_card(vector<char>& deck) {
-    int index = randint(deck.size());
+    int index = randint(deck.size() - 1);
     char card = deck[index];
     remove_el(deck, index);
     return card;
@@ -232,7 +240,7 @@ void start_blackjack_game() {
     player.push_back(draw_card(deck));
     player.push_back(draw_card(deck));
 
-    print("Dealer's face-up card: " + dealer[0]); // Dealer has one hole card
+    print("Dealer's face-up card: " + string(1, dealer[0])); // Dealer has one hole card
     print("Your cards: " + format_hand(player));
 
     int dealer_value;
@@ -256,7 +264,7 @@ void start_blackjack_game() {
     if (player[0] == 'A' && player[1] == 'A') {
         print("You have 2 Ace cards at the start. What do you want the first one to be? (default: option 1)");
         ace_choice = handle_ace_input();
-        if (ace_choice == 1) {
+        if (ace_choice == 11) {
             print("Since you chose it to be 11, your second Ace will be 1 because otherwise you will bust.");
             player_value = 12;
         } else {
@@ -264,11 +272,7 @@ void start_blackjack_game() {
             ace_choice = handle_ace_input();
             print("Okay.");
 
-            if (ace_choice == 1) {
-                player_value = 12; // Ace is 11
-            } else {
-                player_value = 2; // Ace is 1
-            }
+            player_value += ace_choice;
         }
     } else {
         if (find_ace_index(player) == 0 || find_ace_index(player) == 1) {
@@ -277,18 +281,10 @@ void start_blackjack_game() {
             print("Okay.");
 
             // Ace is 11
-            if (ace_choice == 1) {
-                if (find_ace_index(player) == 0) {
-                    player_value = 11 + VALUES[player[1]];
-                } else {
-                    player_value = 11 + VALUES[player[0]];
-                }
+            if (find_ace_index(player) == 0) {
+                player_value = ace_choice + VALUES[player[1]];
             } else {
-                if (find_ace_index(player) == 0) {
-                    player_value = 1 + VALUES[player[1]];
-                } else {
-                    player_value = 1 + VALUES[player[0]];
-                }
+                player_value = ace_choice + VALUES[player[0]];
             }
         } else {
             player_value = VALUES[player[0]] + VALUES[player[1]];
@@ -319,11 +315,7 @@ void start_blackjack_game() {
                     print("You drew an A. What do you want it to be? (default: option 1)");
                     ace_choice = handle_ace_input();
                     print("Okay.");
-                    if (ace_choice == 1) {
-                        player_value += 11;
-                    } else {
-                        player_value += 1;
-                    }
+                    player_value += ace_choice;
                 // Blackjack (win)
                 } else if (card == 'A' && player_value + 11 == 21) {
                     print_player_win(WinType::BLACKJACK);
