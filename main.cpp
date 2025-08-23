@@ -3,8 +3,15 @@
 #include "blackjack.hpp"
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 
+#define WINDOW_RATIO 3
+
 #ifdef _WIN32
-#include <windows.h>
+# include <windows.h>
+# define NO_UNDERLINE     FALSE
+# define NO_STRIKETHROUGH FALSE
+# define NO_ITALIC        FALSE
+# define WHITE            RGB(255, 255, 255)
+# define BLACK            RGB(0, 0, 0)
 #endif /* _WIN32 */
 
 #ifdef __linux__
@@ -73,14 +80,48 @@ void parse_flags(
 }
 
 void print_loop_help() {
-    cout << "What would you like to do now?" << endl;
-    cout << "Enter 'blackjack' to play blackjack while roasting Frank" << endl;
-    cout << "Enter 'exit' to exit the program with a message that roasts Frank" << endl;
+    print("What would you like to do now?");
+    print("Enter 'blackjack' to play blackjack while roasting Frank");
+    print("Enter 'exit' to exit the program with a message that roasts Frank");
 }
 
 #ifdef _WIN32
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
+        case WM_CREATE: {
+            HINSTANCE hInstance = ((CREATESTRUCT*)lParam)->hInstance;
+            HWND label = CreateWindowExW(
+            0, L"STATIC", 
+            L"Frank Roaster", 
+            WS_CHILD | WS_VISIBLE,
+            50, 50, 300, 50,
+            hwnd, NULL, hInstance, NULL
+            );
+
+            HFONT h_font = CreateFontW(
+                -26, 0, 0, 0,
+                FW_BOLD,
+                NO_ITALIC,
+                NO_UNDERLINE,
+                NO_STRIKETHROUGH,
+                DEFAULT_CHARSET,
+                OUT_OUTLINE_PRECIS,
+                CLIP_DEFAULT_PRECIS,
+                CLEARTYPE_QUALITY,
+                DEFAULT_PITCH | FF_SWISS,
+                L"Consolas"
+            );
+
+            SendMessageW(label, WM_SETFONT, (WPARAM)h_font, TRUE);
+        }
+        case WM_CTLCOLORSTATIC: {
+            HDC hdc_static = (HDC)wParam;
+            SetTextColor(hdc_static, WHITE);
+            SetBkColor(hdc_static, BLACK);
+            
+            static HBRUSH h_brush = CreateSolidBrush(BLACK);
+            return (INT_PTR)h_brush;
+        }
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
@@ -89,23 +130,27 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow) {
-    const char CLASS_NAME[] = "MainWindowClass";
-    WNDCLASS window_class = {0};
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLine, int nCmdShow) {
+    const wchar_t CLASS_NAME[] = L"MainWindowClass";
+    WNDCLASSW window_class = {0};
     window_class.lpfnWndProc = WindowProc;
     window_class.hInstance = hInstance;
-    window_class.lpszClassName = "Main";
-    RegisterClass(&window_class);
-
-    HWND hwnd = CreateWindowExA(
+    window_class.lpszClassName = CLASS_NAME;
+    window_class.hbrBackground = CreateSolidBrush(BLACK);
+    RegisterClassW(&window_class);
+    int screen_width = GetSystemMetrics(SM_CXSCREEN);
+    int screen_height = GetSystemMetrics(SM_CYSCREEN);
+    int window_width = screen_width / WINDOW_RATIO;
+    int window_height = screen_height / WINDOW_RATIO;
+    
+    HWND hwnd = CreateWindowExW(
         0,
         CLASS_NAME,
-        "Main",
+        L"Frank Roaster 9000",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        400,
-        400,
+        window_width, window_height,
         NULL,
         NULL,
         hInstance,
@@ -115,9 +160,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     ShowWindow(hwnd, nCmdShow);
 
     MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
+    while (GetMessageW(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
-        DispatchMessageA(&msg);
+        DispatchMessageW(&msg);
     }
     
     return 0;
