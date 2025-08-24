@@ -7,11 +7,12 @@
 
 #ifdef _WIN32
 # include <windows.h>
-# define NO_UNDERLINE     FALSE
-# define NO_STRIKETHROUGH FALSE
-# define NO_ITALIC        FALSE
-# define WHITE            RGB(255, 255, 255)
-# define BLACK            RGB(0, 0, 0)
+# define NO_UNDERLINE        FALSE
+# define NO_STRIKETHROUGH    FALSE
+# define NO_ITALIC           FALSE
+# define WHITE               RGB(255, 255, 255)
+# define BLACK               RGB(0, 0, 0)
+# define BLACKJACK_BUTTON_ID 2
 #endif /* _WIN32 */
 
 #ifdef __linux__
@@ -91,11 +92,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         case WM_CREATE: {
             HINSTANCE hInstance = ((CREATESTRUCT*)lParam)->hInstance;
             HWND label = CreateWindowExW(
-            0, L"STATIC", 
-            L"Frank Roaster", 
-            WS_CHILD | WS_VISIBLE,
-            50, 50, 300, 50,
-            hwnd, NULL, hInstance, NULL
+                0, L"STATIC", 
+                L"Frank Roaster", 
+                WS_CHILD | WS_VISIBLE,
+                50, 50, 300, 50,
+                hwnd, NULL, hInstance, NULL
             );
 
             HFONT h_font = CreateFontW(
@@ -108,11 +109,34 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 OUT_OUTLINE_PRECIS,
                 CLIP_DEFAULT_PRECIS,
                 CLEARTYPE_QUALITY,
-                DEFAULT_PITCH | FF_SWISS,
+                VARIABLE_PITCH,
                 L"Consolas"
             );
 
+            HWND blackjack_button = CreateWindowExW(
+                0, L"BUTTON", L"Play a game of blackjack",
+                WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+                50, 60, 100, 35,
+                hwnd, (HMENU)BLACKJACK_BUTTON_ID,
+                hInstance, NULL
+            );
+
             SendMessageW(label, WM_SETFONT, (WPARAM)h_font, TRUE);
+        }
+        case WM_COMMAND: {
+            int wm_id = LOWORD(wParam);
+            int wm_event = HIWORD(wParam);
+            HWND hwnd_ctrl = (HWND)lParam;
+
+            if (wm_event != BN_CLICKED) {
+                break;
+            }
+
+            if (wm_id == BLACKJACK_BUTTON_ID) {
+                start_blackjack_game();
+            }
+
+            break;
         }
         case WM_CTLCOLORSTATIC: {
             HDC hdc_static = (HDC)wParam;
