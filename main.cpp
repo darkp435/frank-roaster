@@ -143,7 +143,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             );
 
             HWND roast_button = create_button(
-                L"Roast Frank", BLACKJACK_BUTTON_ID,
+                L"Roast Frank", ROAST_BUTTON_ID,
                 hInstance, hwnd, 85, 60, 100, 35
             );
 
