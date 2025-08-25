@@ -12,7 +12,9 @@
 # define NO_ITALIC           FALSE
 # define WHITE               RGB(255, 255, 255)
 # define BLACK               RGB(0, 0, 0)
-# define BLACKJACK_BUTTON_ID 2
+# define BLACKJACK_BUTTON_ID 1
+# define ROAST_INPUT_ID      2
+# define ROAST_BUTTON_ID     3
 #endif /* _WIN32 */
 
 #ifdef __linux__
@@ -35,14 +37,12 @@ void interpret_command(string& command) {
 }
 
 // If the program segfaults, it's probably here.
-void parse_flags(
-        const int argc,
-        const char* argv[],
-        Verbosity& verbosity,
-        string& file_to_write,
-        int& roast_count,
-        bool& just_print
-    ) {
+void parse_flags(const int argc,
+                 const char* argv[],
+                 Verbosity& verbosity,
+                 string& file_to_write,
+                 int& roast_count,
+                 bool& just_print) {
     bool skip = false;
 
     for (int i = 1; i < argc; i++) {
@@ -87,10 +87,32 @@ void print_loop_help() {
 }
 
 #ifdef _WIN32
+HWND create_button(LPCWSTR inner_text, 
+                   int id, 
+                   HINSTANCE h_instance, 
+                   HWND hwnd, 
+                   int xpos, 
+                   int ypos, 
+                   int width, 
+                   int height) {
+    HWND button = CreateWindowExW(
+        0, L"BUTTON", inner_text,
+        WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
+        xpos, ypos, width, height,
+        hwnd, (HMENU)id, h_instance, NULL
+    );
+
+    return button;
+}
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    switch (uMsg) {
+    static HWND roast_input;
+    static Verbosity verbosity;
+
+    switch (uMsg) { 
         case WM_CREATE: {
             HINSTANCE hInstance = ((CREATESTRUCT*)lParam)->hInstance;
+
             HWND label = CreateWindowExW(
                 0, L"STATIC", 
                 L"Frank Roaster", 
@@ -113,12 +135,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 L"Consolas"
             );
 
-            HWND blackjack_button = CreateWindowExW(
-                0, L"BUTTON", L"Play a game of blackjack",
-                WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-                50, 60, 100, 35,
-                hwnd, (HMENU)BLACKJACK_BUTTON_ID,
-                hInstance, NULL
+            roast_input = CreateWindowExW(
+                0, L"EDIT", NULL,
+                WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT | ES_AUTOHSCROLL,
+                50, 50, 150, 25,
+                hwnd, (HMENU)ROAST_INPUT_ID, hInstance, NULL
+            );
+
+            HWND roast_button = create_button(
+                L"Roast Frank", BLACKJACK_BUTTON_ID,
+                hInstance, hwnd, 85, 60, 100, 35
+            );
+
+            HWND blackjack_button = create_button(
+                L"Play a game of blackjack", BLACKJACK_BUTTON_ID,
+                hInstance, hwnd, 50, 60, 100, 35
             );
 
             SendMessageW(label, WM_SETFONT, (WPARAM)h_font, TRUE);
@@ -134,6 +165,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
             if (wm_id == BLACKJACK_BUTTON_ID) {
                 start_blackjack_game();
+            }
+
+            if (wm_id == ROAST_INPUT_ID) {
+                // +1 for null terminator
+                int buffer_length = GetWindowTextLengthW(roast_input) + 1;
+                wchar_t* input_buffer = new wchar_t[buffer_length];
+                wstring input(input_buffer);
+                int roast_times = stoi(input);
+                GetWindowTextW(roast_input, input_buffer, buffer_length);
+                string poem = roast_frank(roast_times, verbosity);
             }
 
             break;
