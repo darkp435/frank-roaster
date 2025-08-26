@@ -55,7 +55,7 @@ enum class LoseType {
     DEALER_FIVE_CARD
 };
 
-string format_hand(vector<char>& hand) {
+static string format_hand(vector<char>& hand) {
     string list(1, hand[0]);
 
     // Ignore the first one, it was already in the constructor
@@ -72,7 +72,7 @@ string format_hand(vector<char>& hand) {
 }
 
 // Should only be used by starting 2 cards.
-int find_ace_index(vector<char>& hand) {
+static int find_ace_index(vector<char>& hand) {
     if (hand[0] == 'A') {
         return 0;
     } else if (hand[1] == 'A') {
@@ -83,7 +83,7 @@ int find_ace_index(vector<char>& hand) {
     }
 }
 
-void print_help() {
+static void print_help() {
     print(ANSI_BOLD "=== BLACKJACK RULES ===" ANSI_DEFAULT);
     print();
     print("When it's your turn, you could either hit (draw another card) or stand (end your turn).");
@@ -103,7 +103,7 @@ void print_help() {
 }
 
 // Returns the value of Ace that the player chose.
-int handle_ace_input() {
+static int handle_ace_input() {
     int ace_choice;
     print("1. 11");
     print("2. 1");
@@ -119,7 +119,7 @@ int handle_ace_input() {
     }
 }
 
-void print_player_win(WinType win_type) {
+static void print_player_win(WinType win_type) {
     print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
     switch (win_type) {
         case WinType::STARTING_BLACKJACK:
@@ -145,7 +145,7 @@ void print_player_win(WinType win_type) {
     }
 }
 
-void print_player_lose(LoseType lose_type, int player_value, int dealer_value) {
+static void print_player_lose(LoseType lose_type, int player_value, int dealer_value) {
     print(ANSI_YELLOW "=== GAME OVER ===" ANSI_DEFAULT);
 
     switch (lose_type) {
@@ -173,25 +173,25 @@ void print_player_lose(LoseType lose_type, int player_value, int dealer_value) {
     print("Your value: " + to_string(player_value));
 }
 
-void print_player_push() {
+static void print_player_push() {
     print(ANSI_BLUE "=== PUSH ===" ANSI_DEFAULT);
     print("It is a push (nobody won) because you and the dealer tied in value.");
     print("If you think that's bad, remember that Frank would've lost!");
     print("Good game.");
 }
 
-inline void remove_el(vector<char>& deck, int index) {
+static inline void remove_el(vector<char>& deck, int index) {
     deck.erase(deck.begin() + index);
 }
 
-int randint(int high) {
+static int randint(int high) {
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> dist(0, high);
     return dist(gen);
 }
 
-char draw_card(vector<char>& deck) {
+static char draw_card(vector<char>& deck) {
     int index = randint(deck.size() - 1);
     char card = deck[index];
     remove_el(deck, index);
