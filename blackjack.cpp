@@ -55,7 +55,39 @@ enum class LoseType {
     DEALER_FIVE_CARD
 };
 
-static string format_hand(vector<char>& hand) {
+// There are 3 possible outcomes, so it's an enum instead of a bool
+enum class HitResult {
+    NOTHING,
+    LOSE,
+    WIN
+};
+
+class Game {
+private:
+    vector<char> dealer;
+    vector<char> player;
+    vector<char> deck;
+    int player_value;
+    int dealer_value;
+    int chips;
+    string format_hand(vector<char>& hand);
+    int find_ace_index(vector<char>& hand);
+    void print_help();
+    int handle_ace_input();
+    void print_player_win(WinType wintype);
+    void print_player_lose(LoseType losetype);
+    void print_player_push();
+    void remove_el(int index);
+    int randint(int high);
+    char draw_card();
+    HitResult hit();
+public:
+    Game(int starting_chips) {
+        this->chips = starting_chips;
+    }
+};
+
+string Game::format_hand(vector<char>& hand) {
     string list(1, hand[0]);
 
     // Ignore the first one, it was already in the constructor
@@ -72,7 +104,7 @@ static string format_hand(vector<char>& hand) {
 }
 
 // Should only be used by starting 2 cards.
-static int find_ace_index(vector<char>& hand) {
+int Game::find_ace_index(vector<char>& hand) {
     if (hand[0] == 'A') {
         return 0;
     } else if (hand[1] == 'A') {
@@ -83,7 +115,7 @@ static int find_ace_index(vector<char>& hand) {
     }
 }
 
-static void print_help() {
+void Game::print_help() {
     print(ANSI_BOLD "=== BLACKJACK RULES ===" ANSI_DEFAULT);
     print();
     print("When it's your turn, you could either hit (draw another card) or stand (end your turn).");
@@ -103,7 +135,7 @@ static void print_help() {
 }
 
 // Returns the value of Ace that the player chose.
-static int handle_ace_input() {
+int Game::handle_ace_input() {
     int ace_choice;
     print("1. 11");
     print("2. 1");
@@ -119,7 +151,7 @@ static int handle_ace_input() {
     }
 }
 
-static void print_player_win(WinType win_type) {
+void Game::print_player_win(WinType win_type) {
     print(ANSI_RED "=== YOU WIN! ===" ANSI_DEFAULT);
     switch (win_type) {
         case WinType::STARTING_BLACKJACK:
@@ -145,7 +177,7 @@ static void print_player_win(WinType win_type) {
     }
 }
 
-static void print_player_lose(LoseType lose_type, int player_value, int dealer_value) {
+void Game::print_player_lose(LoseType lose_type) {
     print(ANSI_YELLOW "=== GAME OVER ===" ANSI_DEFAULT);
 
     switch (lose_type) {
@@ -169,257 +201,72 @@ static void print_player_lose(LoseType lose_type, int player_value, int dealer_v
 
     print();
     print(ANSI_BOLD "=== RESULTS ===" ANSI_DEFAULT);
-    print("Dealer value: " + to_string(dealer_value));
-    print("Your value: " + to_string(player_value));
+    print("Dealer value: " + to_string(this->dealer_value));
+    print("Your value: " + to_string(this->player_value));
 }
 
-static void print_player_push() {
+void Game::print_player_push() {
     print(ANSI_BLUE "=== PUSH ===" ANSI_DEFAULT);
     print("It is a push (nobody won) because you and the dealer tied in value.");
     print("If you think that's bad, remember that Frank would've lost!");
     print("Good game.");
 }
 
-static inline void remove_el(vector<char>& deck, int index) {
-    deck.erase(deck.begin() + index);
+void Game::remove_el(int index) {
+    this->deck.erase(this->deck.begin() + index);
 }
 
-static int randint(int high) {
+int Game::randint(int high) {
     random_device rd;
     mt19937 gen(rd());
     uniform_int_distribution<> dist(0, high);
     return dist(gen);
 }
 
-static char draw_card(vector<char>& deck) {
+char Game::draw_card() {
     int index = randint(deck.size() - 1);
-    char card = deck[index];
-    remove_el(deck, index);
+    char card = this->deck[index];
+    this->remove_el(index);
     return card;
 }
 
-void start_blackjack_game() {
-    vector<char> deck = {
-        '2', '2', '2', '2',
-        '3', '3', '3', '3',
-        '4', '4', '4', '4',
-        '5', '5', '5', '5',
-        '6', '6', '6', '6',
-        '7', '7', '7', '7',
-        '8', '8', '8', '8',
-        '9', '9', '9', '9',
-        '0', '0', '0', '0', // This is 10, but char doesn't support multiple characters
-        'J', 'J', 'J', 'J', // Jack (10)
-        'Q', 'Q', 'Q', 'Q', // Queen (10)
-        'K', 'K', 'K', 'K', // King (10)
-        'A', 'A', 'A', 'A' // Ace (either 1 or 11)
-    };
-    
-    unordered_map<char, int> VALUES;
-    VALUES['2'] = 2;
-    VALUES['3'] = 3;
-    VALUES['4'] = 4;
-    VALUES['5'] = 5;
-    VALUES['6'] = 6;
-    VALUES['7'] = 7;
-    VALUES['8'] = 8;
-    VALUES['9'] = 9;
-    VALUES['0'] = 10;
-    VALUES['J'] = 10;
-    VALUES['Q'] = 10;
-    VALUES['K'] = 10;
-    // Ace is either 1 or 11, not included
+// Won't change except during initialisation of values so this is fine
+unordered_map<char, int> VALUES;
 
-    vector<char> dealer;
-    vector<char> player;
-    // First two dealer cards - one face up, one face down
-    dealer.push_back(draw_card(deck));
-    dealer.push_back(draw_card(deck));
-
-    // First two player cards - both face up
-    player.push_back(draw_card(deck));
-    player.push_back(draw_card(deck));
-
-    print("Dealer's face-up card: " + string(1, dealer[0])); // Dealer has one hole card
-    print("Your cards: " + format_hand(player));
-
-    int dealer_value;
-    int player_value;
+HitResult Game::hit() {
+    char card = draw_card();
     int ace_choice;
 
-    // START OF ACE AND PLAYER DECK INITIAL VALUE CALCULATIONS
-    if (dealer[0] == 'A' && dealer[1] == 'A') {
-        dealer_value = 12; // Ace and ace is 12 for dealer
-    } else {
-        // Ace is 11 for dealer in this context
-        if (find_ace_index(dealer) == 0) {
-            dealer_value = 11 + VALUES[dealer[1]];
-        } else if (find_ace_index(dealer) == 1) {
-            dealer_value = 11 + VALUES[dealer[0]];
-        } else {
-            dealer_value = VALUES[dealer[0]] + VALUES[dealer[1]];
-        }
-    }
-
-    if (player[0] == 'A' && player[1] == 'A') {
-        print("You have 2 Ace cards at the start. What do you want the first one to be? (default: option 1)");
+    if (card == 'A' && this->player_value + 11 < 21) {
+        print("You drew an A. What do you want it to be? (default: option 1)");
         ace_choice = handle_ace_input();
-        if (ace_choice == 11) {
-            print("Since you chose it to be 11, your second Ace will be 1 because otherwise you will bust.");
-            player_value = 12;
-        } else {
-            print("You chose it to be worth 1. What do you want the second Ace to be? (default: option 1)");
-            ace_choice = handle_ace_input();
-            print("Okay.");
-
-            player_value += ace_choice;
-        }
-    } else {
-        if (find_ace_index(player) == 0 || find_ace_index(player) == 1) {
-            print("Your starting hand contains an Ace. What do you want it to be? (default: option 1)");
-            ace_choice = handle_ace_input();
-            print("Okay.");
-
-            // Ace is 11
-            if (find_ace_index(player) == 0) {
-                player_value = ace_choice + VALUES[player[1]];
-            } else {
-                player_value = ace_choice + VALUES[player[0]];
-            }
-        } else {
-            player_value = VALUES[player[0]] + VALUES[player[1]];
-        }
-    }
-    // END OF NESTED SPAGHETTI IF STATEMENT BLOCK
-    if (player_value == 21) {
-        print_player_win(WinType::STARTING_BLACKJACK);
+        print("Okay.");
+        this->player_value += ace_choice;
+    // Blackjack (win)
+    } else if (card == 'A' && this->player_value + 11 == 21) {
+        print_player_win(WinType::BLACKJACK);
         return;
-    }
-
-    bool stand = false;
-
-    while (player.size() < 5 && !stand) {
-        int choice;
-        print("Your hand: " + format_hand(player));
-        print("Options:");
-        print("1. Hit");
-        print("2. Stand");
-        print("3. Help");
-        print("(Input the option number), default is 3.");
-        cin >> choice;
-        
-        switch (choice) {
-            case 1: {
-                char card = draw_card(deck);
-                if (card == 'A' && player_value + 11 < 21) {
-                    print("You drew an A. What do you want it to be? (default: option 1)");
-                    ace_choice = handle_ace_input();
-                    print("Okay.");
-                    player_value += ace_choice;
-                // Blackjack (win)
-                } else if (card == 'A' && player_value + 11 == 21) {
-                    print_player_win(WinType::BLACKJACK);
-                    return;
-                // If they choose 11, they bust, so it's automatically 1
-                } else if (card == 'A' && player_value + 11 > 21) {
-                    print("You drew an A. If you chose the A to be 11, you bust, so A is 1.");
-                    player_value += 1;
-                } else {
-                    print("You drew a " + string(1, card) + ".");
-                    player_value += VALUES[card];
-                }
-
-                // Bust (lose)
-                if (player_value > 21) {
-                    print_player_lose(LoseType::BUST, player_value, dealer_value);
-                    return;
-                // Blackjack (win)
-                } else if (player_value == 21) {
-                    print_player_win(WinType::BLACKJACK);
-                    return;
-                } else {
-                    print(ANSI_GREEN "You did not bust." ANSI_DEFAULT);
-                    print("You are playing better than Frank.");
-                    player.push_back(card);
-                }
-
-                break;
-            }
-            case 2: {
-                print("You chose to stand! Frank would've lost by now...");
-                stand = true;
-                break;
-            }
-            case 3: {
-                print_help();
-                break;
-            }
-            default: {
-                print_help();
-            }
-        }
-    }
-
-    // Dealer's turn. If the player busted, it should've returned by now.
-    if (player.size() == 5) {
-        print("You have 5 cards, blackjack!");
-        print_player_win(WinType::FIVE_CARD);
-        return;
-    }
-
-    print(ANSI_BOLD "It is now the dealer's turn." ANSI_DEFAULT);
-    print("Your final cards before you decided to stand: " + format_hand(player));
-    print("The dealer's face down card is now revealed.");
-    print("Dealer's hand: " + format_hand(dealer));
-    print("The dealer will keep hitting until they either stand on 17 or above, they bust, or they blackjack.");
-
-    // Dealer must hit until they hit 17 or higher
-    while (dealer.size() < 5 && dealer_value < 17) {
-        print("The dealer draws a card...");
-        char card = draw_card(deck);
-        sleep(SLEEP_AMOUNT);
-        // If Ace being 11 makes the dealer bust
-        if (card == 'A' && dealer_value + 11 > 21) {
-            print("The dealer draws an A! The value is 1, because if it's 11, the dealer would bust.");
-            dealer_value += 1;
-        // Dealer blackjack, player loses
-        } else if (card == 'A' && dealer_value + 11 == 21) {
-            dealer_value += 11;
-            print_player_lose(LoseType::DEALER_BLACKJACK, player_value, dealer_value);
-            return;
-        // Dealer value increases by 11
-        } else if (card == 'A' && dealer_value + 11 < 21) {
-            print("The dealer draws an A! The value is 11 because they won't bust if it's 11.");
-            dealer_value += 11;
-        // Not an Ace
-        } else {
-            dealer_value += VALUES[card];
-        }
-
-        // Bust
-        if (dealer_value > 21) {
-            print_player_win(WinType::DEALER_BUST);
-            return;
-        // Blackjack
-        } else if (dealer_value == 21) {
-            print_player_lose(LoseType::DEALER_BLACKJACK, dealer_value, player_value);
-            return;
-        } else {
-            print("The dealer did not bust.");
-            dealer.push_back(card);
-            print("Dealer's hand: " + format_hand(dealer));
-        }
-    }
-
-    // Final results. By now, the dealer has a 17+ value.
-    // Dealer wins (has more value than player)
-    if (dealer_value > player_value) {
-        print_player_lose(LoseType::LOST_TO_DEALER, player_value, dealer_value);
-    // Push (tie)
-    } else if (dealer_value == player_value) {
-        print_player_push();
-    // Player wins - beat dealer
+    // If they choose 11, they bust, so it's automatically 1
+    } else if (card == 'A' && this->player_value + 11 > 21) {
+        print("You drew an A. If you chose the A to be 11, you bust, so A is 1.");
+        this->player_value += 1;
     } else {
-        print_player_win(WinType::BEAT_DEALER);
+        print("You drew a " + string(1, card) + ".");
+        this->player_value += VALUES[card];
     }
+
+    // Bust (lose)
+    if (this->player_value > 21) {
+        return HitResult::LOSE;
+    // Blackjack (win)
+    } else if (this->player_value == 21) {
+        return HitResult::WIN;
+    } else {
+        deck.push_back(card);
+        return HitResult::NOTHING;
+    }
+}
+
+void start_blackjack_game() {
+
 }

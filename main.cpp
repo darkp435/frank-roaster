@@ -4,6 +4,7 @@
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 
 #define WINDOW_RATIO 3
+#define CMDLINE
 
 #ifdef _WIN32
 # include <windows.h>
@@ -86,7 +87,8 @@ void print_loop_help() {
     print("Enter 'exit' to exit the program with a message that roasts Frank");
 }
 
-#ifdef _WIN32
+// TEMPORARY - NOT TO BE COMMITTED
+#if defined(_WIN32) && !defined(CMDLINE)
 HWND create_button(LPCWSTR inner_text, 
                    int id, 
                    HINSTANCE h_instance, 
