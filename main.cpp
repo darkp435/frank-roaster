@@ -4,7 +4,6 @@
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 
 #define WINDOW_RATIO 3
-#define CMDLINE
 
 #ifdef _WIN32
 # include <windows.h>
@@ -17,6 +16,9 @@
 # define ROAST_INPUT_ID      2
 # define ROAST_BUTTON_ID     3
 #endif /* _WIN32 */
+
+// GUI versions don't work yet
+#define CMDLINE
 
 #ifdef __linux__
 extern "C" {
@@ -233,6 +235,29 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
     }
     
     return 0;
+}
+#elif defined(__linux__) && !defined(CMDLINE)
+static void activate(GtkApplication* app, gpointer user_data) {
+    GtkWidget* window = gtk_application_window_new(app);
+    gtk_window_set_title(GTK_WINDOW(window), "Frank Roaster 9000");
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+
+    GtkWidget* title = gtk_label_new("Frank Roaster");
+    gtk_window_set_child(GTK_WINDOW(window), title);
+
+    gtk_window_present(GTK_WINDOW(window));
+}
+
+int main(int argc, char* argv[]) {
+    GtkApplication* app;
+    int status;
+
+    app = gtk_application_new("com.darkp.FrankRoastingBlackjack", G_APPLICATION_DEFAULT_FLAGS);
+    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
+    status = g_application_run(G_APPLICATION(app), argc, argv);
+    g_object_unref(app);
+
+    return status;
 }
 #else
 int main(int argc, const char* argv[]) {
