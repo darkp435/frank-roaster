@@ -11,8 +11,8 @@ add_executable(main
 )
 
 if(WIN32 AND NOT MSVC)
-    target_compile_options(main PRIVATE -municode)
-    target_link_options(main PRIVATE -municode -mwindows)
+    target_compile_options(main PRIVATE)
+    target_link_options(main PRIVATE)
 endif()
 
 if (UNIX AND NOT APPLE)

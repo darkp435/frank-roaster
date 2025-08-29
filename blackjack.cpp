@@ -244,6 +244,7 @@ void Game::win(WinType win_type) {
     // Charge the house AND the player
     this->chips += amount + this->current_bet_amnt; // Give the betted chips back as well
     this->house_chips -= amount; // Charge the house
+    print();
 }
 
 void Game::lost(LoseType lose_type) {
@@ -276,6 +277,7 @@ void Game::lost(LoseType lose_type) {
     print("Your value: " + to_string(this->player_value));
     // Player is already charged from the bet, so just give it to the dealer
     this->house_chips += this->current_bet_amnt;
+    print();
 }
 
 void Game::push() {
@@ -285,6 +287,7 @@ void Game::push() {
     print("Good game.");
     // Give the player back their chips, as they tied
     this->chips += this->current_bet_amnt;
+    print();
 }
 
 void Game::remove_el(int index) {
@@ -333,7 +336,7 @@ HitResult Game::hit() {
     } else if (this->player_value == 21) {
         return HitResult::WIN;
     } else {
-        this->deck.push_back(card);
+        this->player.push_back(card);
         return HitResult::NOTHING;
     }
 }
@@ -353,8 +356,10 @@ void Game::single_game(int bet_amount) {
     this->current_bet_amnt = bet_amount;
     // Deduct the chips because of ante
     this->chips -= this->current_bet_amnt;
+    this->dealer = {};
+    this->player = {};
 
-    vector<char> deck = {
+    deck = {
         '2', '2', '2', '2',
         '3', '3', '3', '3',
         '4', '4', '4', '4',
@@ -384,7 +389,6 @@ void Game::single_game(int bet_amount) {
     print();
     print("===================");
     print("Dealer's face-up card: " + string(1, this->dealer[0])); // Dealer has one hole card
-    print("Your cards: " + format_hand(this->player));
 
     this->dealer_value = 0;
     this->player_value = 0;
@@ -597,7 +601,7 @@ void start_blackjack_game() {
     input_dealer_chips:
     print("How many chips do you want the house (aka dealer) to have? (default: 1000)");
     cin >> dealer_chips;
-    if (dealer_chips < 50) {
+    if (dealer_chips < 100) {
         print("There is no way the house is that poor. Be reasonable.");
         goto input_dealer_chips;
     }
@@ -609,10 +613,11 @@ void start_blackjack_game() {
     print("Alright. Let the rounds of blackjack start.");
     Game game(player_chips, dealer_chips);
 
-    game.print_chips();
     int bet_amount;
     // Game loop
     while (game.get_status() == Status::NOTHING) {
+        game.print_chips();
+        print();
         starting_bet:
         print("How much are you betting?");
         cin >> bet_amount;

@@ -28,5 +28,5 @@ inline void print() {
 
 template <typename T>
 inline void print_err(const T& error) {
-    std::cerr << error std::endl;
+    std::cerr << error << std::endl;
 }
