@@ -25,3 +25,8 @@ inline void print(const T& item) {
 inline void print() {
     std::cout << std::endl;
 }
+
+template <typename T>
+inline void print_err(const T& error) {
+    std::cerr << error std::endl;
+}
