@@ -1,5 +1,7 @@
 #include <iostream>
 #include <string>
+#include <csignal>
+#include <cstdlib>
 #include "blackjack.hpp"
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 
@@ -37,6 +39,15 @@ void interpret_command(string& command) {
     if (command == "blackjack") {
         start_blackjack_game();
     }
+}
+
+void handle_ctrlc(int signal) {
+    cout.flush();
+    print();
+    print("\rYou pressed ^C. Now exiting frank-roaster.");
+    print("One last message: he doesn't know how a signal handler works.");
+    print("Adios!");
+    exit(0);
 }
 
 // If the program segfaults, it's probably here.
@@ -261,6 +272,8 @@ int main(int argc, char* argv[]) {
 }
 #else
 int main(int argc, const char* argv[]) {
+    signal(SIGINT, handle_ctrlc);
+
     Verbosity verbosity = Verbosity::MEDIUM;
     string file_to_write = "";
     bool just_print = false;
