@@ -39,6 +39,10 @@ void interpret_command(string& command) {
     if (command == "blackjack") {
         start_blackjack_game();
     }
+
+    if (command == "dungeon") {
+        print("Frank made a crappy dungeon game, so this is better than his one.");
+    }
 }
 
 void handle_ctrlc(int signal) {

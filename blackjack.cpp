@@ -93,7 +93,6 @@ private:
     void lost(LoseType losetype);
     void push();
     void remove_el(int index);
-    int randint(int high);
     char draw_card();
     HitResult hit();
 public:
@@ -294,15 +293,15 @@ void Game::remove_el(int index) {
     this->deck.erase(this->deck.begin() + index);
 }
 
-int Game::randint(int high) {
+int randint(int low, int high) {
     random_device rd;
     mt19937 gen(rd());
-    uniform_int_distribution<> dist(0, high);
+    uniform_int_distribution<> dist(low, high);
     return dist(gen);
 }
 
 char Game::draw_card() {
-    int index = randint(this->deck.size() - 1);
+    int index = randint(0, this->deck.size() - 1);
     char card = this->deck[index];
     this->remove_el(index);
     return card;
@@ -586,7 +585,7 @@ void start_blackjack_game() {
     print("If the house runs out of chips, you win.");
     print("If you run out of chips, you lose.");
     int player_chips;
-    input_player_chips:
+input_player_chips:
     print("How many chips do you want to start with? (default: 25)");
     cin >> player_chips;
     if (player_chips < 1) {
@@ -598,7 +597,7 @@ void start_blackjack_game() {
         goto input_player_chips;
     }
     int dealer_chips;
-    input_dealer_chips:
+input_dealer_chips:
     print("How many chips do you want the house (aka dealer) to have? (default: 1000)");
     cin >> dealer_chips;
     if (dealer_chips < 100) {
