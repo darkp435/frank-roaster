@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include "blackjack.hpp"
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
+#include "dungeon.hpp"
+#include "utils.hpp"
 
 #define WINDOW_RATIO 3
 
@@ -41,7 +43,7 @@ void interpret_command(string& command) {
     }
 
     if (command == "dungeon") {
-        print("Frank made a crappy dungeon game, so this is better than his one.");
+        start_dungeon_game();
     }
 }
 

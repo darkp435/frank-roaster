@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <cmath>
 #include "blackjack.hpp"
-#include "frank-roasting.hpp"
+#include "utils.hpp"
 
 // Linux - POSIX compliant and can use GTK framework
 #ifdef __linux__
@@ -31,14 +31,6 @@ extern "C" {
 // Unified sleep interface (kind of)
 #define sleep Sleep
 #endif /* _WIN32 */
-
-#define ANSI_YELLOW  "\033[33m"
-#define ANSI_RED     "\033[31m"
-#define ANSI_DEFAULT "\033[0m"
-#define ANSI_GREEN   "\033[32m"
-#define ANSI_BOLD    "\033[1m"
-#define ANSI_BLUE    "\033[34m"
-#define ANSI_CYAN    "\033[36m"
 
 using namespace std;
 
@@ -291,13 +283,6 @@ void Game::push() {
 
 void Game::remove_el(int index) {
     this->deck.erase(this->deck.begin() + index);
-}
-
-int randint(int low, int high) {
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_int_distribution<> dist(low, high);
-    return dist(gen);
 }
 
 char Game::draw_card() {

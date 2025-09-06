@@ -8,6 +8,7 @@ add_executable(main
     main.cpp
     frank-roasting.cpp
     blackjack.cpp
+    dungeon.cpp
 )
 
 if(WIN32 AND NOT MSVC)

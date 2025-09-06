@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include "frank-roasting.hpp"
+#include "utils.hpp"
 
 using namespace std;
 
@@ -65,10 +66,11 @@ void help() {
     print("Invalid arguments also prints this message.");
     print("Enter a number to add it to the number of times you want to roast Frank (starts at 0)");
     print("Flags:");
-    print("  -v0   Roasts Frank, but less verbose (not recommend)");
-    print("  -v1   Roasts Frank, but slightly more verbose than normal");
-    print("  -v2   Roasts Frank, but with MAXIMUM VERBOSITY (highly recommended)");
-    print("  -h    Prints this");
-    print("  -o    Specify output file to print the roast to it");
-    print("  -j    Just prints the roast and/or writes to file, do not enter main program loop");
+    print("  -v0      Roasts Frank, but less verbose (not recommend)");
+    print("  -v1      Roasts Frank, but slightly more verbose than normal");
+    print("  -v2      Roasts Frank, but with MAXIMUM VERBOSITY (highly recommended)");
+    print("  -h       Prints this");
+    print("  -o       Specify output file to print the roast to it");
+    print("  -j       Just prints the roast and/or writes to file, do not enter main program loop");
+    print("  --help   Same as -h flag");
 }
