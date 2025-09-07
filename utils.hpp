@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <random>
 
 #define ANSI_YELLOW  "\033[33m"
 #define ANSI_RED     "\033[31m"

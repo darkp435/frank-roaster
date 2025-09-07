@@ -1,5 +1,8 @@
 #include "utils.hpp"
 #include <vector>
+#include <algorithm>
+#include <cstdint>
+#include <optional>
 
 using namespace std;
 
@@ -14,7 +17,11 @@ enum class Role {
     ADVENTURER,
     SOLDIER,
     WIZARD,
-    HUMAN
+    HUMAN,
+    PROGRAMMER,
+    CEO,
+    SCHOLAR,
+    IDIOT
 };
 
 enum class WeaponType {
@@ -34,7 +41,7 @@ enum class RoundResult {
     NOTHING // For rooms like healing fountain and merchant where you can't die
 };
 
-string to_string(Alignment alignment) {
+string stringify(Alignment alignment) {
     switch (alignment) {
         case Alignment::CHAOTIC: return "Chaotic";
         case Alignment::NEUTRAL: return "Neutral";
@@ -43,18 +50,22 @@ string to_string(Alignment alignment) {
     }
 }
 
-string to_string(Role role) {
+string stringify(Role role) {
     switch (role) {
         case Role::ADVENTURER: return "Adventurer";
         case Role::DOCTOR: return "Doctor";
         case Role::HUMAN: return "Human";
         case Role::SOLDIER: return "Soldier";
         case Role::WIZARD: return "Wizard";
+        case Role::CEO: return "CEO";
+        case Role::PROGRAMMER: return "Programmer";
+        case Role::SCHOLAR: return "Scholar";
+        case Role::IDIOT: return "Idiot";
         default: return "Error: unknown role!";
     }
 }
 
-string to_string(WeaponType weapon) {
+string stringify(WeaponType weapon) {
     switch (weapon) {
         case WeaponType::WOODEN_SWORD: return "Wooden Sword";
         case WeaponType::STONE_SWORD: return "Stone Sword";
@@ -67,10 +78,52 @@ string to_string(WeaponType weapon) {
     }
 }
 
+enum class MonsterType {
+    SLIME,
+    GOBLIN,
+    ORC,
+    DWARF,
+    GOLEM,
+    // Boss ones
+    DRAGON
+};
+
 class Monster {
 private:
+    MonsterType type;
+    int hp;
+    int dmg;
+    int level;
 public:
+    Monster(MonsterType monster, int level);
 };
+
+Monster::Monster(MonsterType monster, int level) : type(monster), level(level) {
+    switch (this->type) {
+        case MonsterType::SLIME:
+            this->hp = 10;
+            this->dmg = 5;
+            break;
+        case MonsterType::GOBLIN:
+            this->hp = randint(15, 20);
+            this->dmg = 8;
+            break;
+        case MonsterType::ORC:
+            this->hp = randint(25, 35);
+            this->dmg = randint(12, 15);
+            break;
+        case MonsterType::DWARF:
+            this->hp = randint(35, 40);
+            this->dmg = randint(15, 20);
+            break;
+        case MonsterType::GOLEM:
+            this->hp = randint(50, 70);
+            this->dmg = randint(25, 30);
+            break;
+        default:
+            print_err("Error: unknown monster type!");
+    }
+}
 
 class Potion {
 private:
@@ -103,8 +156,7 @@ struct Room {
     RoomType room_type;
     vector<Monster> monsters = {};
     int gold = 0;
-    int heals = 0;
-    Weapon* weapon = nullptr;
+    optional<Weapon> weapon = nullopt;
 };
 
 class Game {
@@ -116,10 +168,16 @@ private:
     int score;
     int defense;
     int intellect;
+    Room current_room;
     Alignment alignment;
     Role role;
     Weapon weapon;
-    Room generate_room();
+    void generate_room();
+    void init_normal_room();
+    void generate_boss_room();
+    void generate_monster_room();
+    void generate_healing();
+    void generate_treasure();
 public:
     Game(Alignment alignment, Role role);
     RoundResult next_room();
@@ -154,6 +212,25 @@ Game::Game(Alignment alignment, Role role)
             this->gold += 5;
             this->health += 10;
             break;
+        case Role::CEO:
+            this->gold += 50;
+            this->intellect -= 99;
+            break;
+        case Role::PROGRAMMER:
+            this->intellect += 5;
+            this->health -= 50;
+            break;
+        case Role::SCHOLAR:
+            this->intellect += 3;
+            this->defense -= 1;
+            this->health -= 20;
+            break;
+        case Role::IDIOT:
+            this->health -= 99;
+            this->intellect -= 100;
+            this->defense -= 100;
+            this->gold -= 100;
+            break;
         default:
             print_err("Error: unkown role!");
     }
@@ -164,20 +241,88 @@ struct RoomProbability {
     int probability;
 };
 
-Room Game::generate_room() {
+int cumulative(vector<uint32_t>& probabilities) {
+    int cumulative = 0;
+    int random = randint(1, 100);
+
+    for (int i = 0; i < probabilities.size(); i++) {
+        cumulative += probabilities[i];
+        if (random <= cumulative) {
+            return i;
+        }
+    }
+
+    print_err("Error: probabilities do not add up to 100%!");
+    return -1; // So that the compiler doesn't crap about no return value
+}
+
+void Game::init_normal_room() {
+    constexpr int MAX_GOLD_NORMAL_ROOM = 4;
+    // Cumulative chance is overkill for 2 values. 50% chance for no gold, then
+    // equidistribution of gold from 1-4. We clamp the value because the room
+    // can't have negative gold.
+    int room_gold = clamp(randint(1, 8) - MAX_GOLD_NORMAL_ROOM, 0, 4);
+    current_room.gold = room_gold;
+    // Cumulative chance here for determining how many monsters spawn since there
+    // are more than 2 possible values.
+    vector<uint32_t> monster_amnt_chances = {30, 30, 20, 10, 7, 2, 1};
+    vector<uint32_t> monster_chances = {40, 30, 15, 10, 5};
+    int monster_amnt = cumulative(monster_amnt_chances);
+    for (int i = 0; i < monster_amnt; i++) {
+        // Clamp it so that it's 0-4 just in case it returns -1 or >4
+        MonsterType monster_type = static_cast<MonsterType>(clamp(cumulative(monster_chances), 0, 4));
+        Monster monster(monster_type, 1);
+        current_room.monsters.push_back(monster);
+    }
+
+    // 25% chance for the room to have heals
+    if (randint(1, 100) <= 25) {
+        print("This room, though unfamilar, seems strangely soothing.");
+        this->health = randint(5, 15);
+    }
+
+    // 3% chance for the room to have a weapon
+    if (randint(1, 100) <= 3) {
+        print("You feel a stroke of luck and see a shiny new weapon in the room.");
+        current_room.weapon = Weapon(WeaponType::WOODEN_SWORD);
+    }
+}
+
+void Game::generate_boss_room() {
+    print("There is a looming sense of dread.");
+    print("This monster is no ordinary one...");
+    Monster boss(MonsterType::DRAGON, 2);
+    this->current_room.monsters.push_back(boss);
+}
+
+void Game::generate_room() {
     // Boss always appears at room divisible by 20, monster always at room divisble by 7, tower only
     // appears at room 50 and nowhere else. Other than that, normal room chance is 70%, healing 15%,
     // treasure 10% and monster 5%.
+    // Handle boss and monster first since they are prioritised.
+    RoomType chosen_room_type;
+
+    if (this->room % 20 == 0) {
+        this->current_room = {RoomType::BOSS};
+        this->generate_boss_room();
+        return;
+    }
+
+    if (this->room % 7 == 0) {
+        this->current_room = {RoomType::BOSS};
+        this->generate_monster_room();
+        return;
+    }
+
     vector<RoomProbability> room_table = {
         {RoomType::NORMAL, 70},
         {RoomType::HEALING, 15},
         {RoomType::TREASURE, 10},
         {RoomType::MONSTER, 5}
     };
-
+    
     int room_rnd_number = randint(1, 100);
     int cumulative = 0;
-    RoomType chosen_room_type;
     for (int i = 0; i < room_table.size(); i++) {
         cumulative += room_table[i].probability;
         if (room_rnd_number <= cumulative) {
@@ -186,10 +331,22 @@ Room Game::generate_room() {
         }
     }
 
-    Room chosen_room = {chosen_room_type};
+    this->current_room = {chosen_room_type};
     switch (chosen_room_type) {
         case RoomType::NORMAL:
-            chosen_room.gold = 3;
+            this->init_normal_room();
+            break;
+        case RoomType::HEALING:
+            this->generate_healing();
+            break;
+        case RoomType::TREASURE:
+            this->generate_treasure();
+            break;
+        case RoomType::MONSTER:
+            this->generate_monster_room();
+            break;
+        default:
+            print_err("Error: unknown room type!");
     }
 }
 
