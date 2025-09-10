@@ -166,6 +166,29 @@ optional<Loot> Monster::gets_hit(int dmg) {
     (*HEALS)[MonsterType::SLIME] = 0;
     (*HEALS)[MonsterType::GOBLIN] = 0;
     (*HEALS)[MonsterType::ORC] = randint(0, 5);
+    (*HEALS)[MonsterType::DWARF] = randint(0, 10);
+    (*HEALS)[MonsterType::GOLEM] = randint(5, 15);
+    (*HEALS)[MonsterType::DRAGON] = 50;
+    loot.heals = (*HEALS)[this->type] + (this->level * 5);
+    // Not needed anymore
+    delete HEALS;
+    HEALS = nullptr;
+
+    // Dropped potion
+    if (randint(1, 100) <= 10) {
+        vector<uint32_t> potion_c = {30, 25, 20, 25};
+        PotionEffect potion_effect = static_cast<PotionEffect>(clamp(cumulative(potion_c), 0, 3));
+        Potion potion(potion_effect, 1, 2);
+        loot.potion = potion;
+    }
+
+    // Dropped weapon (2%)
+    if (randint(1, 100) <= 2) {
+        vector<uint32_t> weapon_c = {0, 40, 30, 15, 9, 3, 3};
+        WeaponType weapon_t = static_cast<WeaponType>(clamp(cumulative(weapon_c), 0, 6));
+        Weapon weapon(weapon_t);
+        loot.weapon = weapon;
+    }
 }
 
 enum class PotionEffect {
@@ -282,7 +305,8 @@ enum class RoomType {
     BOSS,
     TOWER,
     TREASURE,
-    HEALING
+    HEALING,
+    MERCHANT
 };
 
 struct Room {
@@ -307,12 +331,17 @@ private:
     Alignment alignment;
     Role role;
     Weapon weapon;
+    vector<Potion> potions;
     void generate_room();
     void init_normal_room();
     void generate_boss_room();
     void generate_monster_room();
     void generate_healing();
     void generate_treasure();
+    void generate_merchant();
+    void shop();
+    void gamble();
+    inline bool is_full_hp();
 public:
     Game(Alignment alignment, Role role);
     RoundResult next_room();
@@ -498,6 +527,18 @@ void Game::generate_monster_room() {
     }
 }
 
+inline bool Game::is_full_hp() {
+    return this->health == this->max_health;
+}
+
+void Game::generate_merchant() {
+    print("Ah! A friendly face at last!");
+    if (!is_full_hp()) {
+        print("Just from the atmosphere, your wounds start to recover.");
+        this->health = clamp(this->health + 20, 1, this->max_health);
+    }
+}
+
 void Game::generate_room() {
     // Boss always appears at room divisible by 20, monster always at room divisble by 7, tower only
     // appears at room 50 and nowhere else. Other than that, normal room chance is 70%, healing 15%,
@@ -511,8 +552,13 @@ void Game::generate_room() {
         return;
     }
 
+    if (this->room % 10 == 0) {
+        this->current_room = {RoomType::MERCHANT};
+        this->generate_merchant();
+    }
+
     if (this->room % 7 == 0) {
-        this->current_room = {RoomType::BOSS};
+        this->current_room = {RoomType::MONSTER};
         this->generate_monster_room();
         return;
     }
@@ -550,8 +596,62 @@ void Game::generate_room() {
             break;
         default:
             print_err("Error: unknown room type!");
+            this->init_normal_room();
     }
 }
+
+void Game::gamble() {
+    print("How much gold do you wish to bet? ");
+    bool is_valid_input = false;
+    uint32_t bet;
+    
+    while (!is_valid_input) {
+        string input;
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        getline(cin, input);
+        int bet_input; // May be negative, so it's temporary
+        
+        try {
+            bet_input = stoi(input);
+        } catch (invalid_argument& e) {
+            print("You didn't input a valid number.");
+            // Skip validation because there is no valid number to check for
+            continue;
+        }
+    }
+}
+
+void Game::shop() {
+    print();
+    print("What would you like to do?");
+    print("1. Weapons");
+    print("2. Potions");
+    print("3. Gamble");
+    print("(Default: 3, clamped if it isn't 1-3)");
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    string input;
+    getline(cin, input);
+    int choice;
+    try {
+        choice = clamp(stoi(input), 1, 3);
+    } catch (invalid_argument& e) {
+        choice = 3;
+    }
+
+    switch (choice) {
+        case 1:
+            break;
+        case 2:
+            break;
+        case 3:
+            this->gamble();
+            break;
+        default:
+            // Shouldn't happen
+            print_err("Error: clamping failed!");
+    }
+}
+
 
 RoundResult Game::next_room() {
     this->room++;
@@ -561,11 +661,15 @@ RoundResult Game::next_room() {
     print("Gold: " + to_string(this->gold));
     print("Defense: +" + to_string(this->defense));
     print("Intellect: +" + to_string(this->intellect));
-    print("");
+    print(stringify(this->alignment) + " " + stringify(this->role));
+    this->generate_room();
+
+    if (this->current_room.room_type == RoomType::MERCHANT) {
+        this->shop();
+    }
 }
 
 void start_dungeon_game(int high_score=0) { 
     print("=== DUNGEON ===");
     print(ANSI_BOLD "A dungeon game that's significantly better than Frank's." ANSI_DEFAULT);
-    
 }
