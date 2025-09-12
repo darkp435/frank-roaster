@@ -286,15 +286,20 @@ int main(int argc, const char* argv[]) {
     int roast_count = 0;
 
     parse_flags(argc, argv, verbosity, file_to_write, roast_count, just_print);
-    cout << roast_frank(roast_count, verbosity);
+    string* final_poem = roast_frank(roast_count, verbosity);
+    cout << *final_poem;
 
     if (file_to_write != "") {
-        write_file(file_to_write, roast_count, verbosity);
+        write_file(file_to_write, final_poem, verbosity);
     }
 
     if (just_print) {
         return 0;
     }
+
+    // Isn't used past this point, so we drop it to free the memory
+    delete final_poem;
+    final_poem = nullptr;
 
     while (true) {
         print_loop_help();

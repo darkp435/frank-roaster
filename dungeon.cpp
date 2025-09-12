@@ -1,9 +1,11 @@
 #include "utils.hpp"
+#include "dungeon.hpp"
 #include <vector>
 #include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <unordered_map>
+#include <cmath>
 
 using namespace std;
 
@@ -96,13 +98,11 @@ struct Loot {
     optional<Potion> potion;
 };
 
-class Monster {
-private:
+struct Monster {
     MonsterType type;
     int hp;
     int dmg;
     int level;
-public:
     Monster(MonsterType monster, int level);
     int attack();
     optional<Loot> gets_hit(int dmg);
@@ -289,15 +289,56 @@ int Potion::defense_in_effect() {
 
 class Weapon {
 private:
-    unsigned int damage;
-    unsigned int strength; // Strength is the thing that pierces defence
+    uint32_t damage;
+    double strength; // Multiplier
     WeaponType type;
 public:
-    Weapon(WeaponType type) : type(type) {
-        this->damage = 10;
-        this->strength = 1;
-    }
+    WeaponType get_type();
+    Weapon(WeaponType type);
+    uint32_t attack();
 };
+
+WeaponType Weapon::get_type() {
+    return this->type;
+}
+
+Weapon::Weapon(WeaponType type) : type(type) {
+    switch (this->type) {
+        case WeaponType::WOODEN_SWORD:
+            this->damage = 10;
+            this->strength = 1;
+            break;
+        case WeaponType::STONE_SWORD:
+            this->damage = 15;
+            this->strength = randnum(1.0, 1.2);
+            break;
+        case WeaponType::IRON_SWORD:
+            this->damage = 20;
+            this->strength = randnum(1.0, 1.5);
+            break;
+        case WeaponType::ENCHANTED_SWORD:
+            this->damage = 30;
+            this->strength = randnum(1.0, 1.6);
+            break;
+        case WeaponType::WIZARD_STAFF:
+            this->damage = 50;
+            this->strength = randnum(1.0, 1.7);
+            break;
+        case WeaponType::SHADOW_SCYTHE:
+            this->damage = 75;
+            this->strength = randnum(0.75, 2.0);
+            break;
+        case WeaponType::EXCALIBUR:
+            this->damage = 60;
+            this->strength = randnum(1.0, 2.0);
+    }
+    this->damage = 10;
+    this->strength = 1;
+}
+
+uint32_t Weapon::attack() {
+    return floor(damage * strength);
+}
 
 enum class RoomType {
     NORMAL,
@@ -341,6 +382,20 @@ private:
     void generate_merchant();
     void shop();
     void gamble();
+    void weapon_menu();
+    void potion_menu();
+    void buy_stone_sword();
+    void buy_iron_sword();
+    void buy_enchant_sword();
+    void buy_wizard_staff();
+    void buy_shadow_scythe();
+    void buy_excalibur();
+    void buy_water();
+    void buy_healing();
+    void buy_strength();
+    void buy_defense();
+    optional<Loot> fight(Monster& monster);
+    bool can_afford(int amnt);
     inline bool is_full_hp();
 public:
     Game(Alignment alignment, Role role);
@@ -618,40 +673,278 @@ void Game::gamble() {
             // Skip validation because there is no valid number to check for
             continue;
         }
+
+        if (bet_input <= 0) {
+            print("You can't bet nothing.");
+        } else if (bet_input > this->gold) {
+            print("You can't bet more than you have.");
+        } else {
+            print("Ok.");
+            is_valid_input = true;
+            bet = bet_input;
+        }
+    }
+    // The house always wins. 60% chance you lose.
+    if (randint(1, 100) <= 60) {
+        print("You lost!");
+        this->gold -= bet;
+        return;
+    }
+
+    print("You won!");
+    this->gold += bet;
+}
+
+bool Game::can_afford(int amnt) {
+    return this->gold >= amnt;
+}
+
+void Game::buy_stone_sword() {
+    print("It's an upgrade from a wooden sword.");
+    this->gold -= 30;
+    Weapon new_weapon(WeaponType::WOODEN_SWORD);
+    this->weapon = new_weapon;
+}
+
+void Game::buy_iron_sword() {
+    print("Better than the stone age.");
+    this->gold -= 60;
+    Weapon new_weapon(WeaponType::IRON_SWORD);
+    this->weapon = new_weapon;
+}
+
+void Game::buy_enchant_sword() {
+    print("It's said that the sword has magical properties.");
+    this->gold -= 150;
+    Weapon new_weapon(WeaponType::ENCHANTED_SWORD);
+    this->weapon = new_weapon;
+}
+
+void Game::buy_wizard_staff() {
+    print("A powerful wizard has once wielded this.");
+    this->gold -= 200;
+    Weapon new_weapon(WeaponType::WIZARD_STAFF);
+    this->weapon = new_weapon;
+}
+
+void Game::buy_shadow_scythe() {
+    switch (this->alignment) {
+        case Alignment::CHAOTIC:
+            print("The shadow scythe, perfect for chaotic people.");
+            print("And now, you wield it with pride.");
+            this->gold -= 350;
+            Weapon new_weapon(WeaponType::SHADOW_SCYTHE);
+            this->weapon = new_weapon;
+            break;
+        case Alignment::NEUTRAL:
+            print("It is a tiny bit unwieldy for you, but it'll work.");
+            print("You can feel the power resonate through it.");
+            this->gold -= 350;
+            Weapon new_weapon(WeaponType::SHADOW_SCYTHE);
+            this->weapon = new_weapon;
+            break;
+        case Alignment::LAWFUL:
+            print("You are too lawful to wield a sword of chaos.");
+            print("It does not submit to you.");
+            print("(Maybe try the Excalibur instead...?)");
+            break;
+        default:
+            print("Error: unknown alignment!");
     }
 }
 
-void Game::shop() {
+void Game::buy_excalibur() {
+    switch (this->alignment) {
+        case Alignment::CHAOTIC:
+            print("The sword rejects you. It only obeys those who are lawful.");
+            print("It is unwieldy for those who are chaotic.");
+            print("(Maybe try the Shadow Scythe instead...?)");
+            break;
+        case Alignment::NEUTRAL:
+            print("The sword is hesistant, but ultimately submits.");
+            print("You can feel the elegance of it.");
+            this->gold -= 350;
+            Weapon new_weapon(WeaponType::EXCALIBUR);
+            this->weapon = new_weapon;
+            break;
+        case Alignment::LAWFUL:
+            print("The sword has found its new owner.");
+            this->gold -= 350;
+            Weapon new_weapon(WeaponType::EXCALIBUR);
+            this->weapon = new_weapon;
+            break;
+        default:
+            print("Error: unknown alignment!");
+    }
+}
+
+void Game::weapon_menu() {
     print();
-    print("What would you like to do?");
-    print("1. Weapons");
-    print("2. Potions");
-    print("3. Gamble");
-    print("(Default: 3, clamped if it isn't 1-3)");
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    string input;
-    getline(cin, input);
+    print("What weapon?");
+    print("1. Stone Sword (30 gold)");
+    print("2. Iron Sword (60 gold)");
+    print("3. Enchanted Sword (150 gold)");
+    print("4. Wizard Staff (200 gold)");
+    print("5. Shadow Scythe (350 gold)");
+    print("6. Excalibur (350 gold)");
+    print("Any other number is back to main menu");
+    print();
     int choice;
-    try {
-        choice = clamp(stoi(input), 1, 3);
-    } catch (invalid_argument& e) {
-        choice = 3;
+    while (true) {
+        string input;
+        getline(cin, input);
+        try {
+            choice = stoi(input);
+            break;
+        } catch (invalid_argument& e) {
+            print("You must enter a valid number.");
+        }
     }
 
     switch (choice) {
         case 1:
+            if (!this->can_afford(30)) return;
+            this->buy_stone_sword();
             break;
         case 2:
+            if (!this->can_afford(60)) return;
+            this->buy_iron_sword();
             break;
         case 3:
-            this->gamble();
+            if (!this->can_afford(150)) return;
+            this->buy_enchant_sword();
+            break;
+        case 4:
+            if (!this->can_afford(200)) return;
+            this->buy_wizard_staff();
+            break;
+        case 5:
+            if (!this->can_afford(350)) return;
+            this->buy_shadow_scythe();
+            break;
+        case 6:
+            if (!this->can_afford(350)) return;
+            this->buy_excalibur();
             break;
         default:
-            // Shouldn't happen
-            print_err("Error: clamping failed!");
+            return;
     }
 }
 
+void Game::buy_water() {
+    print("You made the odd choice of buying... water");
+}
+
+void Game::buy_healing() {
+
+}
+
+void Game::buy_strength() {
+
+}
+
+void Game::buy_defense() {
+    
+}
+
+void Game::potion_menu() {
+    print("What potion do you want to buy?");
+    print("1. Water (10 gold)");
+    print("2. Healing Potion (50 gold)");
+    print("3. Strength Potion (75 gold)");
+    print("4. Defense Potion (80 gold)");
+    print("Any other number to exit");
+    int choice;
+    bool input_valid = false;
+    while (!input_valid) {
+        string input;
+        getline(cin, input);
+        try {
+            choice = stoi(input);
+            input_valid = true;
+        } catch (invalid_argument& e) {
+            print("You must enter a valid number.");
+        }
+    }
+
+    switch (choice) {
+        case 1:
+            if (!can_afford(10)) return;
+            this->buy_water();
+            break;
+        case 2:
+            if (!can_afford(50)) return;
+            this->buy_healing();
+            break;
+        case 3:
+            if (!can_afford(75)) return;
+            this->buy_strength();
+            break;
+        case 4:
+            if (!can_afford(80)) return;
+            this->buy_defense();
+            break;
+        default:
+            return;
+    }
+}
+
+void Game::shop() {
+    bool should_exit = false;
+    print();
+    print("What would you like to do?");
+    while (!should_exit) {
+        print();
+        print("1. Weapons");
+        print("2. Potions");
+        print("3. Gamble");
+        print("4. Exit (next room)");
+        print("(Default: 3, clamped if it isn't 1-4)");
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        string input;
+        getline(cin, input);
+        int choice;
+        try {
+            choice = clamp(stoi(input), 1, 4);
+        } catch (invalid_argument& e) {
+            choice = 3;
+        }
+
+        switch (choice) {
+            case 1:
+                this->weapon_menu();
+                break;
+            case 2:
+                this->potion_menu();
+                break;
+            case 3:
+                this->gamble();
+                break;
+            case 4:
+                print("Farewell, shopkeeper!");
+                should_exit = true;
+                break;
+            default:
+                // Shouldn't happen
+                print_err("Error: clamping failed!");
+        }
+    }
+}
+
+// Returns nullopt if the player died
+optional<Loot> Game::fight(Monster& monster) {
+    while (this->health > 0) {
+        // Player hits first, then monster
+        uint32_t player_hit = this->weapon.attack();
+        optional<Loot> status = monster.gets_hit(player_hit);
+        if (status != nullopt) {
+            return status;
+        }
+        this->health -= monster.attack() / this->defense;
+    }
+    // Player dies
+    return nullopt;
+}
 
 RoundResult Game::next_room() {
     this->room++;
@@ -666,10 +959,90 @@ RoundResult Game::next_room() {
 
     if (this->current_room.room_type == RoomType::MERCHANT) {
         this->shop();
+        return RoundResult::NOTHING;
+    }
+
+    for (int i = 0; i < current_room.monsters.size(); i++) {
+        optional<Loot> result = this->fight(current_room.monsters[i]);
+        if (result == nullopt) {
+            return RoundResult::DIED;
+        }
+        Loot loot = result.value();
+        int gold = loot.gold;
+        int heals = loot.heals;
+        this->gold += gold;
+        this->health = clamp(this->health + heals, 1, this->max_health);
+        if (loot.weapon != nullopt) {
+            print("You found a weapon!");
+            if (static_cast<int>(loot.weapon.value().get_type()) > static_cast<int>(this->weapon.get_type())) {
+                
+            }
+        }
     }
 }
 
 void start_dungeon_game(int high_score=0) { 
     print("=== DUNGEON ===");
     print(ANSI_BOLD "A dungeon game that's significantly better than Frank's." ANSI_DEFAULT);
+    print();
+    print("What role do you wish to be?");
+    print("1. A doctor");
+    print("2. An adventurer");
+    print("3. A solider");
+    print("4. A wizard");
+    print("5. A human");
+    print("6. A programmer");
+    print("7. A CEO");
+    print("8. A scholar");
+    print("9. An idiot");
+    print("Any other number for it to be random.");
+    bool input_valid = false;
+    int raw_option;
+    while (!input_valid) {
+        string raw_input;
+        getline(cin, raw_input);
+        try {
+            raw_option = stoi(raw_input);
+            input_valid = true;
+        } catch (invalid_argument& e) {
+            print();
+            print("Please input a valid number.");
+        }
+    }
+
+    if (raw_option > 9 || raw_option < 1) {
+        raw_option = randint(1, 9);
+    }
+
+    // Enums start at 0, whereas the options start at 1,
+    // so we minus one to account for it.
+    Role role = static_cast<Role>(raw_option - 1);
+    
+    print();
+    print("What alignment do you want to be?");
+    print("1. Lawful");
+    print("2. Neutral");
+    print("3. Chaotic");
+    print("Any other number for it to be random.");
+    input_valid = false;
+    int raw_alignment;
+    while (!input_valid) {
+        string alignment_input;
+        getline(cin, alignment_input);
+        try {
+            raw_alignment = stoi(alignment_input);
+            input_valid = true;
+        } catch (invalid_argument& e) {
+            print();
+            print("Please input a valid number.");
+        }
+    }
+
+    if (raw_alignment > 3 || raw_alignment < 1) {
+        raw_alignment = randint(1, 3);
+    }
+
+    // Again, we minus one to account for enums starting at 0.
+    Alignment alignment = static_cast<Alignment>(raw_alignment - 1);
+    Game game(alignment, role);
 }

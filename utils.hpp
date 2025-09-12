@@ -33,3 +33,12 @@ int randint(int low, int high) {
     std::uniform_int_distribution<> dist(low, high);
     return dist(gen);
 }
+
+// Could be float or double, so we use a template
+template <typename T>
+T randnum(T low, T high) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<T> dist(low, high);
+    return dist(gen);
+}
