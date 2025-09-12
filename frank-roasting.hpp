@@ -12,5 +12,7 @@ enum class Verbosity {
 // Roasts Frank the given number of times with given verbosity. Maximum verbosity is recommended.
 // Uses a pointer because the string will be dropped past a certain point in the program.
 std::string* roast_frank(int number_of_times, Verbosity verbosity);
+// NOTE: `poem` MUST NOT BE `nullptr`. It doesn't check if it's a null pointer, and will
+// therefore explode if it is. Surely that won't happen... right...?
 void write_file(std::string filename, std::string* poem, Verbosity verbosity);
 void help();

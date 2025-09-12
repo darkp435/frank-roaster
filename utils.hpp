@@ -10,7 +10,6 @@
 #define ANSI_BLUE    "\033[34m"
 #define ANSI_CYAN    "\033[36m"
 
-int randint(int low, int high);
 // Prints the provided item with a newline and flushes output stream. This is because I'm too lazy to put endl.
 template <typename T>
 inline void print(const T& item) {
@@ -27,7 +26,7 @@ inline void print_err(const T& error) {
     std::cerr << error << std::endl;
 }
 
-int randint(int low, int high) {
+inline int randint(int low, int high) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(low, high);
@@ -36,7 +35,7 @@ int randint(int low, int high) {
 
 // Could be float or double, so we use a template
 template <typename T>
-T randnum(T low, T high) {
+inline T randnum(T low, T high) {
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<T> dist(low, high);

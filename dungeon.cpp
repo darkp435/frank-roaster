@@ -9,6 +9,21 @@
 
 using namespace std;
 
+int cumulative(vector<uint32_t>& probabilities) {
+    int cumulative = 0;
+    int random = randint(1, 100);
+
+    for (int i = 0; i < probabilities.size(); i++) {
+        cumulative += probabilities[i];
+        if (random <= cumulative) {
+            return i;
+        }
+    }
+
+    print_err("Error: probabilities do not add up to 100%!");
+    return -1; // So that the compiler doesn't crap about no return value
+}
+
 enum class Alignment {
     LAWFUL,
     NEUTRAL,
@@ -90,6 +105,144 @@ enum class MonsterType {
     // Boss ones
     DRAGON
 };
+
+class Weapon {
+private:
+    uint32_t damage;
+    double strength; // Multiplier
+    WeaponType type;
+public:
+    WeaponType get_type();
+    Weapon(WeaponType type);
+    uint32_t attack();
+};
+
+WeaponType Weapon::get_type() {
+    return this->type;
+}
+
+Weapon::Weapon(WeaponType type) : type(type) {
+    switch (this->type) {
+        case WeaponType::WOODEN_SWORD:
+            this->damage = 10;
+            this->strength = 1;
+            break;
+        case WeaponType::STONE_SWORD:
+            this->damage = 15;
+            this->strength = randnum(1.0, 1.2);
+            break;
+        case WeaponType::IRON_SWORD:
+            this->damage = 20;
+            this->strength = randnum(1.0, 1.5);
+            break;
+        case WeaponType::ENCHANTED_SWORD:
+            this->damage = 30;
+            this->strength = randnum(1.0, 1.6);
+            break;
+        case WeaponType::WIZARD_STAFF:
+            this->damage = 50;
+            this->strength = randnum(1.0, 1.7);
+            break;
+        case WeaponType::SHADOW_SCYTHE:
+            this->damage = 75;
+            this->strength = randnum(0.75, 2.0);
+            break;
+        case WeaponType::EXCALIBUR:
+            this->damage = 60;
+            this->strength = randnum(1.0, 2.0);
+    }
+    this->damage = 10;
+    this->strength = 1;
+}
+
+uint32_t Weapon::attack() {
+    return floor(damage * strength);
+}
+
+enum class PotionEffect {
+    STRENGTH,
+    HEALING,
+    DEFENSE,
+    WATER
+};
+
+class Potion {
+private:
+    PotionEffect potion_type;
+    int potency;
+    int duration;
+    int drink_healing_potion();
+    int drink_strength_potion();
+    int strength_in_effect();
+    int drink_defense_potion();
+    int defense_in_effect();
+    int drink_water();
+public:
+    int (Potion::*use)();
+    PotionEffect get_type();
+    Potion(PotionEffect type, int potency, int duration);
+};
+
+Potion::Potion(PotionEffect type, int potency, int duration=0)
+    : potency(potency), duration(duration), potion_type(type)
+{
+    switch (type) {
+        case PotionEffect::DEFENSE:
+            this->use = &Potion::drink_defense_potion;
+            break;
+        case PotionEffect::HEALING:
+            this->use = &Potion::drink_healing_potion;
+            break;
+        case PotionEffect::STRENGTH:
+            this->use = &Potion::drink_strength_potion;
+            break;
+        case PotionEffect::WATER:
+            this->use = &Potion::drink_water;
+            break;
+        default:
+            print_err("Error: unknown potion type! Defaulting to water.");
+            this->use = &Potion::drink_water;
+    }
+}
+
+PotionEffect Potion::get_type() {
+    return this->potion_type;
+}
+
+int Potion::drink_healing_potion() {
+    return this->potency * 30;
+}
+
+int Potion::drink_defense_potion() {
+    this->duration--;
+    this->use = &Potion::defense_in_effect;
+    return this->potency + 1;
+}
+
+int Potion::drink_strength_potion() {
+    this->duration--;
+    this->use = &Potion::strength_in_effect;
+    return this->potency * 2;
+}
+
+int Potion::drink_water() {
+    return 10;
+}
+
+int Potion::strength_in_effect() {
+    if (this->duration <= 0) {
+        return -1;
+    }
+
+    this->duration--;
+    // Not the initial use, less strength
+    return this->potency * 2 - 1;
+}
+
+int Potion::defense_in_effect() {
+    // placeholder
+    return 1;
+}
 
 struct Loot {
     int gold;
@@ -189,14 +342,9 @@ optional<Loot> Monster::gets_hit(int dmg) {
         Weapon weapon(weapon_t);
         loot.weapon = weapon;
     }
-}
 
-enum class PotionEffect {
-    STRENGTH,
-    HEALING,
-    DEFENSE,
-    WATER
-};
+    return loot;
+}
 
 string stringify(PotionEffect effect) {
     switch (effect) {
@@ -208,136 +356,6 @@ string stringify(PotionEffect effect) {
             print_err("Error: unknown potion type!");
             return "";
     }
-}
-
-class Potion {
-private:
-    PotionEffect potion_type;
-    int potency;
-    int duration;
-    int drink_healing_potion();
-    int drink_strength_potion();
-    int strength_in_effect();
-    int drink_defense_potion();
-    int defense_in_effect();
-    int drink_water();
-public:
-    int (Potion::*use)();
-    PotionEffect get_type();
-    Potion::Potion(PotionEffect type, int potency, int duration);
-};
-
-Potion::Potion(PotionEffect type, int potency, int duration=0)
-    : potency(potency), duration(duration), potion_type(type)
-{
-    switch (type) {
-        case PotionEffect::DEFENSE:
-            this->use = &Potion::drink_defense_potion;
-            break;
-        case PotionEffect::HEALING:
-            this->use = &Potion::drink_healing_potion;
-            break;
-        case PotionEffect::STRENGTH:
-            this->use = &Potion::drink_strength_potion;
-            break;
-        case PotionEffect::WATER:
-            this->use = &Potion::drink_water;
-            break;
-        default:
-            print_err("Error: unknown potion type! Defaulting to water.");
-            this->use = &Potion::drink_water;
-    }
-}
-
-PotionEffect Potion::get_type() {
-    return this->potion_type;
-}
-
-int Potion::drink_healing_potion() {
-    return this->potency * 30;
-}
-
-int Potion::drink_defense_potion() {
-    this->duration--;
-    this->use = &Potion::defense_in_effect;
-    return this->potency + 1;
-}
-
-int Potion::drink_strength_potion() {
-    this->duration--;
-    this->use = &Potion::strength_in_effect;
-    return this->potency * 2;
-}
-
-int Potion::drink_water() {
-    return 10;
-}
-
-int Potion::strength_in_effect() {
-    if (this->duration <= 0) {
-        return -1;
-    }
-
-    this->duration--;
-    // Not the initial use, less strength
-    return this->potency * 2 - 1;
-}
-
-int Potion::defense_in_effect() {
-
-}
-
-class Weapon {
-private:
-    uint32_t damage;
-    double strength; // Multiplier
-    WeaponType type;
-public:
-    WeaponType get_type();
-    Weapon(WeaponType type);
-    uint32_t attack();
-};
-
-WeaponType Weapon::get_type() {
-    return this->type;
-}
-
-Weapon::Weapon(WeaponType type) : type(type) {
-    switch (this->type) {
-        case WeaponType::WOODEN_SWORD:
-            this->damage = 10;
-            this->strength = 1;
-            break;
-        case WeaponType::STONE_SWORD:
-            this->damage = 15;
-            this->strength = randnum(1.0, 1.2);
-            break;
-        case WeaponType::IRON_SWORD:
-            this->damage = 20;
-            this->strength = randnum(1.0, 1.5);
-            break;
-        case WeaponType::ENCHANTED_SWORD:
-            this->damage = 30;
-            this->strength = randnum(1.0, 1.6);
-            break;
-        case WeaponType::WIZARD_STAFF:
-            this->damage = 50;
-            this->strength = randnum(1.0, 1.7);
-            break;
-        case WeaponType::SHADOW_SCYTHE:
-            this->damage = 75;
-            this->strength = randnum(0.75, 2.0);
-            break;
-        case WeaponType::EXCALIBUR:
-            this->damage = 60;
-            this->strength = randnum(1.0, 2.0);
-    }
-    this->damage = 10;
-    this->strength = 1;
-}
-
-uint32_t Weapon::attack() {
-    return floor(damage * strength);
 }
 
 enum class RoomType {
@@ -396,10 +414,11 @@ private:
     void buy_defense();
     optional<Loot> fight(Monster& monster);
     bool can_afford(int amnt);
-    inline bool is_full_hp();
+    bool is_full_hp();
 public:
     Game(Alignment alignment, Role role);
     RoundResult next_room();
+    int get_room();
 };
 
 Game::Game(Alignment alignment, Role role)
@@ -457,25 +476,14 @@ Game::Game(Alignment alignment, Role role)
     this->health = 0 + this->max_health; // Just in case they refer to same in memory
 }
 
+int Game::get_room() {
+    return this->room;
+}
+
 struct RoomProbability {
     RoomType room;
     int probability;
 };
-
-int cumulative(vector<uint32_t>& probabilities) {
-    int cumulative = 0;
-    int random = randint(1, 100);
-
-    for (int i = 0; i < probabilities.size(); i++) {
-        cumulative += probabilities[i];
-        if (random <= cumulative) {
-            return i;
-        }
-    }
-
-    print_err("Error: probabilities do not add up to 100%!");
-    return -1; // So that the compiler doesn't crap about no return value
-}
 
 void Game::generate_healing() {
     constexpr int HEAL_AMOUNT = 30;
@@ -729,20 +737,22 @@ void Game::buy_wizard_staff() {
 
 void Game::buy_shadow_scythe() {
     switch (this->alignment) {
-        case Alignment::CHAOTIC:
+        case Alignment::CHAOTIC: {
             print("The shadow scythe, perfect for chaotic people.");
             print("And now, you wield it with pride.");
             this->gold -= 350;
             Weapon new_weapon(WeaponType::SHADOW_SCYTHE);
             this->weapon = new_weapon;
             break;
-        case Alignment::NEUTRAL:
+        }
+        case Alignment::NEUTRAL: {
             print("It is a tiny bit unwieldy for you, but it'll work.");
             print("You can feel the power resonate through it.");
             this->gold -= 350;
             Weapon new_weapon(WeaponType::SHADOW_SCYTHE);
             this->weapon = new_weapon;
             break;
+        }
         case Alignment::LAWFUL:
             print("You are too lawful to wield a sword of chaos.");
             print("It does not submit to you.");
@@ -760,19 +770,21 @@ void Game::buy_excalibur() {
             print("It is unwieldy for those who are chaotic.");
             print("(Maybe try the Shadow Scythe instead...?)");
             break;
-        case Alignment::NEUTRAL:
+        case Alignment::NEUTRAL: {
             print("The sword is hesistant, but ultimately submits.");
             print("You can feel the elegance of it.");
             this->gold -= 350;
             Weapon new_weapon(WeaponType::EXCALIBUR);
             this->weapon = new_weapon;
             break;
-        case Alignment::LAWFUL:
+        }
+        case Alignment::LAWFUL: {
             print("The sword has found its new owner.");
             this->gold -= 350;
             Weapon new_weapon(WeaponType::EXCALIBUR);
             this->weapon = new_weapon;
             break;
+        }
         default:
             print("Error: unknown alignment!");
     }
@@ -972,16 +984,49 @@ RoundResult Game::next_room() {
         int heals = loot.heals;
         this->gold += gold;
         this->health = clamp(this->health + heals, 1, this->max_health);
-        if (loot.weapon != nullopt) {
-            print("You found a weapon!");
-            if (static_cast<int>(loot.weapon.value().get_type()) > static_cast<int>(this->weapon.get_type())) {
-                
-            }
+        if (loot.weapon != nullopt && 
+            static_cast<int>(loot.weapon.value().get_type()) > static_cast<int>(this->weapon.get_type())) 
+        {
+            // Weapon is guaranteed to exist
+            Weapon new_weapon = loot.weapon.value();
+            print("You found a new weapon better than your old one!");
+            print("Your old weapon: " + stringify(this->weapon.get_type()));
+            print("Your new weapon: " + stringify(new_weapon.get_type()));
+            this->weapon = new_weapon;
+        }
+        if (loot.potion != nullopt) {
+            print("The monster also dropped a potion");
+            print("Dropped potion: " + stringify(loot.potion.value().get_type()));
+            this->potions.push_back(loot.potion.value());
         }
     }
+
+    if (current_room.gold > 0) {
+        print("You found " + to_string(current_room.gold) + " in this room.");
+        this->gold += current_room.gold;
+    }
+
+    if (current_room.potion != nullopt) {
+        print("You found a " + stringify(current_room.potion.value().get_type()));
+        this->potions.push_back(current_room.potion.value());
+    }
+
+    if (current_room.weapon != nullopt &&
+        static_cast<int>(current_room.weapon.value().get_type()) > static_cast<int>(this->weapon.get_type())) 
+    {
+        print("You found a " + stringify(current_room.weapon.value().get_type()));
+        this->weapon = current_room.weapon.value();
+    }
+
+    constexpr int BARELY_SURVIVED_THRESHOLD = 5;
+    if (this->health <= BARELY_SURVIVED_THRESHOLD) {
+        return RoundResult::BARELY_SURVIVED;
+    }
+    
+    return RoundResult::SURVIVED;
 }
 
-void start_dungeon_game(int high_score=0) { 
+void start_dungeon_game(int high_score) { 
     print("=== DUNGEON ===");
     print(ANSI_BOLD "A dungeon game that's significantly better than Frank's." ANSI_DEFAULT);
     print();
@@ -1045,4 +1090,24 @@ void start_dungeon_game(int high_score=0) {
     // Again, we minus one to account for enums starting at 0.
     Alignment alignment = static_cast<Alignment>(raw_alignment - 1);
     Game game(alignment, role);
+    while (true) {
+        RoundResult result = game.next_room();
+
+        switch (result) {
+            case RoundResult::BARELY_SURVIVED:
+                print("Oof... You barely survived!");
+                print("Frank would've died here!");
+                break;
+            case RoundResult::DIED:
+                print("The dungeon ultimately claims your life.");
+                print("You reached room " + to_string(game.get_room()));
+                return;
+            case RoundResult::NOTHING:
+                print("Let's hope the next room will be more... interesting.");
+                break;
+            case RoundResult::SURVIVED:
+                print("You survived the room! Great job. Frank would've died.");
+                break;
+        }
+    }
 }
