@@ -6,6 +6,7 @@
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 #include "dungeon.hpp"
 #include "utils.hpp"
+#include "shit.h"
 
 #define WINDOW_RATIO 3
 
@@ -21,14 +22,13 @@
 # define ROAST_BUTTON_ID     3
 #endif /* _WIN32 */
 
-// GUI versions don't work yet
-#define CMDLINE
-
 #ifdef __linux__
 extern "C" {
     #include <gtk/gtk.h>
 }
 #endif /* __linux__ */
+
+#define CMDLINE
 
 using namespace std;
 
@@ -254,13 +254,21 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR lpCmdLin
     return 0;
 }
 #elif defined(__linux__) && !defined(CMDLINE)
+static void gen_poem(GtkWidget* widget, gpointer data) {
+    string* poem = roast_frank(100, Verbosity::MAXIMUM);
+}
+
 static void activate(GtkApplication* app, gpointer user_data) {
     GtkWidget* window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "Frank Roaster 9000");
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
 
+    GtkWidget* vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     GtkWidget* title = gtk_label_new("Frank Roaster");
-    gtk_window_set_child(GTK_WINDOW(window), title);
+    gtk_window_set_child(GTK_WINDOW(vbox), title);
+
+    GtkWidget* button = gtk_button_new_with_label("Generate Poem");
+    g_signal_connect()
 
     gtk_window_present(GTK_WINDOW(window));
 }
