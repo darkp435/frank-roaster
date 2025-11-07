@@ -6,6 +6,8 @@
 #include <optional>
 #include <unordered_map>
 #include <cmath>
+#include <string>
+#include <iostream>
 
 using namespace std;
 
@@ -226,7 +228,8 @@ int Potion::drink_strength_potion() {
 }
 
 int Potion::drink_water() {
-    return 10;
+    print("You drank some water. It was refreshing.");
+    return 10 + randint(0, 5);
 }
 
 int Potion::strength_in_effect() {
@@ -386,6 +389,7 @@ private:
     int score;
     int defense;
     int intellect;
+    uint8_t strength_duration;
     Room current_room;
     Alignment alignment;
     Role role;
@@ -412,6 +416,7 @@ private:
     void buy_healing();
     void buy_strength();
     void buy_defense();
+    void use_item();
     optional<Loot> fight(Monster& monster);
     bool can_afford(int amnt);
     bool is_full_hp();
@@ -845,18 +850,30 @@ void Game::weapon_menu() {
 
 void Game::buy_water() {
     print("You made the odd choice of buying... water");
+    this->gold -= 10;
+    Potion water(PotionEffect::WATER, 1);
+    this->potions.push_back(water);
 }
 
 void Game::buy_healing() {
-
+    print("Healing potion, a popular choice.");
+    this->gold -= 50;
+    Potion healing(PotionEffect::HEALING, 1);
+    this->potions.push_back(healing);
 }
 
 void Game::buy_strength() {
-
+    print("Strength to crush your enemies! How barbaric...");
+    this->gold -= 75;
+    Potion strength(PotionEffect::STRENGTH, 1);
+    this->potions.push_back(strength);
 }
 
 void Game::buy_defense() {
-    
+    print("Defensive...");
+    this->gold -= 80;
+    Potion defense(PotionEffect::DEFENSE, 1);
+    this->potions.push_back(defense);
 }
 
 void Game::potion_menu() {
@@ -958,6 +975,40 @@ optional<Loot> Game::fight(Monster& monster) {
     return nullopt;
 }
 
+void Game::use_item() {
+    print("Items:");
+    for (int i = 0; i < this->potions.size(); i++) {
+        Potion potion = this->potions[i];
+        // std::vector uses 0 based indexing, but lists starting at 0 would be
+        // weird to read, we adjust the value by +1 so that it looks better
+        print(to_string(i + 1) + ": " + stringify(potion.get_type()));
+    }
+
+    int potion_input;
+    string raw_input;
+    getline(cin, raw_input);
+    try {
+        potion_input = stoi(raw_input);
+    } catch (invalid_argument& e) {
+        potion_input = 0;
+    }
+
+    Potion selected_potion = this->potions[potion_input];
+    int value = (selected_potion.*(selected_potion.use))();
+    switch (selected_potion.get_type()) {
+        case PotionEffect::DEFENSE:
+            break;
+        case PotionEffect::HEALING:
+            break;
+        case PotionEffect::STRENGTH:
+            break;
+        case PotionEffect::WATER:
+            break;
+        default:
+            print_err("Error - unknown potion type!");
+    }
+}
+
 RoundResult Game::next_room() {
     this->room++;
     print(ANSI_BOLD "=== Room " + to_string(this->room) + " ===" ANSI_DEFAULT);
@@ -972,6 +1023,25 @@ RoundResult Game::next_room() {
     if (this->current_room.room_type == RoomType::MERCHANT) {
         this->shop();
         return RoundResult::NOTHING;
+    }
+
+    print();
+    print("Options");
+    print("1. Use an item");
+    print("2. Continue");
+    print("(Default is 2 if input is invalid)");
+    int input_number;
+    string raw_input;
+    getline(cin, raw_input);
+
+    try {
+        input_number = stoi(raw_input);
+    } catch (invalid_argument& e) {
+        input_number = 2;
+    }
+
+    if (input_number == 1) {
+        this->use_item();
     }
 
     for (int i = 0; i < current_room.monsters.size(); i++) {

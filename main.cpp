@@ -45,6 +45,10 @@ void interpret_command(string& command) {
     if (command == "dungeon") {
         start_dungeon_game();
     }
+
+    // Not a valid command, execute it as shell
+    print("(Note: not a valid command, executing as regular shell command!)");
+    system(command.c_str());
 }
 
 void handle_ctrlc(int signal) {
@@ -52,7 +56,7 @@ void handle_ctrlc(int signal) {
     print();
     print("\rYou pressed ^C. Now exiting frank-roaster.");
     print("One last message: he doesn't know how a signal handler works.");
-    print("Adios!");
+    print("Farewell!");
     exit(0);
 }
 

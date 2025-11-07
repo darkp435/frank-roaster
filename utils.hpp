@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <random>
+#include <concepts>
 
 #define ANSI_YELLOW  "\033[33m"
 #define ANSI_RED     "\033[31m"
@@ -10,8 +11,13 @@
 #define ANSI_BLUE    "\033[34m"
 #define ANSI_CYAN    "\033[36m"
 
-// Prints the provided item with a newline and flushes output stream. This is because I'm too lazy to put endl.
 template <typename T>
+concept Printable = requires(T& input) {
+    {std::cout << input } -> std::same_as<std::ostream&>;
+};
+
+// Prints the provided item with a newline and flushes output stream. This is because I'm too lazy to put endl.
+template <Printable T>
 inline void print(const T& item) {
     std::cout << item << std::endl;
 }
