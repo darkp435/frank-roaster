@@ -6,7 +6,7 @@
 #include "frank-roasting.hpp" // he doesn't know how to use c++ include directives
 #include "dungeon.hpp"
 #include "utils.hpp"
-#include "shit.h"
+#include "secret-weapon-against-frank.hh"
 
 #define WINDOW_RATIO 3
 
@@ -320,5 +320,6 @@ int main(int argc, const char* argv[]) {
         cin >> option;
         interpret_command(option);
     }
+    Secret::SuperSecret::UltraSecret::TopSecret::Forbidden::FailSafe::ultimate_weapon();
 }
 #endif

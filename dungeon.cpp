@@ -1024,6 +1024,25 @@ RoundResult Game::next_room() {
         this->shop();
         return RoundResult::NOTHING;
     }
+    
+    for (int i = 0; i < potions.size(); i++) {
+        Potion potion = potions[i];
+        print(to_string(i) + ". " + stringify(potion.get_type()));
+    }
+
+    print("Which potion to drink? (Not a valid one = don't drink potion)");
+    string option;
+    getline(cin, option);
+    int potion_index;
+    try {
+        potion_index = stoi(option);
+    } catch (invalid_argument& e) {
+        potion_index = -1;
+    }
+
+    if (potion_index < potions.size() && potion_index != -1) {
+        
+    }
 
     print();
     print("Options");
