@@ -168,90 +168,82 @@ enum class PotionEffect {
     WATER
 };
 
+// Forward declaration of game so that it doesn't break when we reference game inside of potion.
+class Game;
+
 class Potion {
-private:
-    PotionEffect potion_type;
+public:
     int potency;
     int duration;
-    int drink_healing_potion();
-    int drink_strength_potion();
-    int strength_in_effect();
-    int drink_defense_potion();
-    int defense_in_effect();
-    int drink_water();
-public:
-    int (Potion::*use)();
-    PotionEffect get_type();
-    Potion(PotionEffect type, int potency, int duration);
+    // Unfortunately, we do still need get_type for printing and it would be more
+    // readable to have a function for this than rely on RTTI.
+    virtual PotionEffect get_type() = 0;
+    virtual void drink(Game* game) = 0;
+    Potion(int potency, int duration) {
+        this->potency = potency;
+        this->duration = duration;
+    }
 };
 
-Potion::Potion(PotionEffect type, int potency, int duration=0)
-    : potency(potency), duration(duration), potion_type(type)
-{
-    switch (type) {
-        case PotionEffect::DEFENSE:
-            this->use = &Potion::drink_defense_potion;
-            break;
-        case PotionEffect::HEALING:
-            this->use = &Potion::drink_healing_potion;
-            break;
-        case PotionEffect::STRENGTH:
-            this->use = &Potion::drink_strength_potion;
-            break;
-        case PotionEffect::WATER:
-            this->use = &Potion::drink_water;
-            break;
-        default:
-            print_err("Error: unknown potion type! Defaulting to water.");
-            this->use = &Potion::drink_water;
-    }
-}
+class StrengthPotion : public Potion {
+public:
+    StrengthPotion(int potency, int duration) : Potion(potency, duration) {}
 
-PotionEffect Potion::get_type() {
-    return this->potion_type;
-}
-
-int Potion::drink_healing_potion() {
-    return this->potency * 30;
-}
-
-int Potion::drink_defense_potion() {
-    this->duration--;
-    this->use = &Potion::defense_in_effect;
-    return this->potency + 1;
-}
-
-int Potion::drink_strength_potion() {
-    this->duration--;
-    this->use = &Potion::strength_in_effect;
-    return this->potency * 2;
-}
-
-int Potion::drink_water() {
-    print("You drank some water. It was refreshing.");
-    return 10 + randint(0, 5);
-}
-
-int Potion::strength_in_effect() {
-    if (this->duration <= 0) {
-        return -1;
+    PotionEffect get_type() override {
+        return PotionEffect::STRENGTH;
     }
 
-    this->duration--;
-    // Not the initial use, less strength
-    return this->potency * 2 - 1;
-}
+    void drink(Game* game) override {
 
-int Potion::defense_in_effect() {
-    // placeholder
-    return 1;
-}
+    }
+};
+
+class DefensePotion : public Potion {
+public:
+    DefensePotion(int potency, int duration) : Potion(potency, duration) {}
+
+    PotionEffect get_type() override {
+        return PotionEffect::DEFENSE;
+    }
+
+    void drink(Game* game) override {
+
+    }
+};
+
+// Health and water all have a duration of 0, meaning that they are insta-use.
+class HealthPotion : public Potion {
+public:
+    HealthPotion(int potency) : Potion(potency, 0) {}
+
+    PotionEffect get_type() override {
+        return PotionEffect::HEALING;
+    }
+
+    void drink(Game* game) override {
+
+    }
+};
+
+// Potency does not matter for water, nor does duration, because it's... well... water.
+class Water : public Potion {
+public:
+    Water() : Potion(0, 0) {}
+
+    PotionEffect get_type() override {
+        return PotionEffect::HEALING;
+    }
+
+    void drink(Game* game) override {
+
+    }
+};
 
 struct Loot {
     int gold;
     int heals;
     optional<Weapon> weapon;
-    optional<Potion> potion;
+    optional<Potion*> potion;
 };
 
 struct Monster {
@@ -334,7 +326,27 @@ optional<Loot> Monster::gets_hit(int dmg) {
     if (randint(1, 100) <= 10) {
         vector<uint32_t> potion_c = {30, 25, 20, 25};
         PotionEffect potion_effect = static_cast<PotionEffect>(clamp(cumulative(potion_c), 0, 3));
-        Potion potion(potion_effect, 1, 2);
+        Potion* potion;
+        switch (potion_effect) {
+            case PotionEffect::WATER: {
+                potion = new Water();
+                break;
+            }
+            case PotionEffect::DEFENSE: {
+                potion = new DefensePotion(randint(1, 2), randint(2, 4));
+                break;
+            }
+            case PotionEffect::STRENGTH: {
+                potion = new StrengthPotion(randint(1, 2), randint(2, 3));
+                break;
+            }
+            case PotionEffect::HEALING: {
+                potion = new HealthPotion(randint(1, 2));
+                break;
+            }
+            default:
+                print_err("ERROR: PotionEffect enumeration is not valid.");
+        }
         loot.potion = potion;
     }
 
@@ -376,7 +388,7 @@ struct Room {
     vector<Monster> monsters = {};
     int gold = 0;
     optional<Weapon> weapon = nullopt;
-    optional<Potion> potion = nullopt;
+    optional<Potion*> potion = nullopt;
 };
 
 class Game {
@@ -394,7 +406,8 @@ private:
     Alignment alignment;
     Role role;
     Weapon weapon;
-    vector<Potion> potions;
+    vector<Potion*> potions;
+    
     void generate_room();
     void init_normal_room();
     void generate_boss_room();
@@ -504,7 +517,7 @@ void Game::generate_healing() {
     // Healing potion spawn
     if (randint(1, 100 <= 30)) {
         print("There is a healing potion.");
-        Potion healing_potion(PotionEffect::HEALING, 2);
+        Potion* healing_potion = new HealthPotion(2);
         this->current_room.potion = healing_potion;
     }
 
@@ -533,10 +546,6 @@ void Game::generate_treasure() {
         Weapon weapon(weapon_type);
         this->current_room.weapon = weapon;
     }
-
-    vector<uint32_t> potion_chances = {35, 25, 25, 15};
-    PotionEffect potion_t = static_cast<PotionEffect>(clamp(cumulative(potion_chances), 0, 3));
-    Potion potion(potion_t, 1, 3);
 }
 
 void Game::init_normal_room() {
@@ -851,28 +860,28 @@ void Game::weapon_menu() {
 void Game::buy_water() {
     print("You made the odd choice of buying... water");
     this->gold -= 10;
-    Potion water(PotionEffect::WATER, 1);
+    Potion* water = new Water();
     this->potions.push_back(water);
 }
 
 void Game::buy_healing() {
     print("Healing potion, a popular choice.");
     this->gold -= 50;
-    Potion healing(PotionEffect::HEALING, 1);
+    Potion* healing = new HealthPotion(randint(1, 2));
     this->potions.push_back(healing);
 }
 
 void Game::buy_strength() {
     print("Strength to crush your enemies! How barbaric...");
     this->gold -= 75;
-    Potion strength(PotionEffect::STRENGTH, 1);
+    Potion* strength = new StrengthPotion(1, randint(1, 3));
     this->potions.push_back(strength);
 }
 
 void Game::buy_defense() {
     print("Defensive...");
     this->gold -= 80;
-    Potion defense(PotionEffect::DEFENSE, 1);
+    Potion* defense = new DefensePotion(randint(1,2), randint(1, 2));
     this->potions.push_back(defense);
 }
 
@@ -978,10 +987,10 @@ optional<Loot> Game::fight(Monster& monster) {
 void Game::use_item() {
     print("Items:");
     for (int i = 0; i < this->potions.size(); i++) {
-        Potion potion = this->potions[i];
+        Potion* potion = this->potions[i];
         // std::vector uses 0 based indexing, but lists starting at 0 would be
         // weird to read, we adjust the value by +1 so that it looks better
-        print(to_string(i + 1) + ": " + stringify(potion.get_type()));
+        print(to_string(i + 1) + ": " + stringify(potion->get_type()));
     }
 
     int potion_input;
@@ -993,20 +1002,7 @@ void Game::use_item() {
         potion_input = 0;
     }
 
-    Potion selected_potion = this->potions[potion_input];
-    int value = (selected_potion.*(selected_potion.use))();
-    switch (selected_potion.get_type()) {
-        case PotionEffect::DEFENSE:
-            break;
-        case PotionEffect::HEALING:
-            break;
-        case PotionEffect::STRENGTH:
-            break;
-        case PotionEffect::WATER:
-            break;
-        default:
-            print_err("Error - unknown potion type!");
-    }
+    Potion* selected_potion = this->potions[potion_input];
 }
 
 RoundResult Game::next_room() {
@@ -1026,8 +1022,8 @@ RoundResult Game::next_room() {
     }
     
     for (int i = 0; i < potions.size(); i++) {
-        Potion potion = potions[i];
-        print(to_string(i) + ". " + stringify(potion.get_type()));
+        Potion* potion = potions[i];
+        print(to_string(i) + ". " + stringify(potion->get_type()));
     }
 
     print("Which potion to drink? (Not a valid one = don't drink potion)");
@@ -1085,7 +1081,7 @@ RoundResult Game::next_room() {
         }
         if (loot.potion != nullopt) {
             print("The monster also dropped a potion");
-            print("Dropped potion: " + stringify(loot.potion.value().get_type()));
+            print("Dropped potion: " + stringify(loot.potion.value()->get_type()));
             this->potions.push_back(loot.potion.value());
         }
     }
@@ -1096,7 +1092,7 @@ RoundResult Game::next_room() {
     }
 
     if (current_room.potion != nullopt) {
-        print("You found a " + stringify(current_room.potion.value().get_type()));
+        print("You found a " + stringify(current_room.potion.value()->get_type()));
         this->potions.push_back(current_room.potion.value());
     }
 
