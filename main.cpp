@@ -108,6 +108,7 @@ void print_loop_help() {
     print("What would you like to do now?");
     print("Enter 'blackjack' to play blackjack while roasting Frank");
     print("Enter 'exit' to exit the program with a message that roasts Frank");
+    print("Enter 'dungeon' to play a dungeon game that's miles better than Frank's (may be unstable!).");
 }
 
 // TEMPORARY - NOT TO BE COMMITTED

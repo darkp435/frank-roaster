@@ -1,5 +1,6 @@
 #include "utils.hpp"
 #include "dungeon.hpp"
+#include "dungeon-internal.hpp"
 #include <vector>
 #include <algorithm>
 #include <cstdint>
@@ -8,10 +9,14 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <format>
+#ifdef WIN32
+#include <conio.h>
+#endif
 
 using namespace std;
 
-int cumulative(vector<uint32_t>& probabilities) {
+int cumulative_rng(vector<uint32_t>& probabilities) {
     int cumulative = 0;
     int random = randint(1, 100);
 
@@ -26,41 +31,6 @@ int cumulative(vector<uint32_t>& probabilities) {
     return -1; // So that the compiler doesn't crap about no return value
 }
 
-enum class Alignment {
-    LAWFUL,
-    NEUTRAL,
-    CHAOTIC
-};
-
-enum class Role {
-    DOCTOR,
-    ADVENTURER,
-    SOLDIER,
-    WIZARD,
-    HUMAN,
-    PROGRAMMER,
-    CEO,
-    SCHOLAR,
-    IDIOT
-};
-
-enum class WeaponType {
-    WOODEN_SWORD,
-    STONE_SWORD,
-    IRON_SWORD,
-    ENCHANTED_SWORD,
-    WIZARD_STAFF,
-    SHADOW_SCYTHE, // Chaotic sided. Deals the most damage but contains curses.
-    EXCALIBUR // Lawful sided. Deals less damage than shadow scythe but doesn't contain curses.
-};
-
-enum class RoundResult {
-    DIED,
-    BARELY_SURVIVED,
-    SURVIVED,
-    NOTHING // For rooms like healing fountain and merchant where you can't die
-};
-
 string stringify(Alignment alignment) {
     switch (alignment) {
         case Alignment::CHAOTIC: return "Chaotic";
@@ -72,7 +42,7 @@ string stringify(Alignment alignment) {
 
 string stringify(Role role) {
     switch (role) {
-        case Role::ADVENTURER: return "Adventurer";
+        case Role::ADVENTURER   : return "Adventurer";
         case Role::DOCTOR: return "Doctor";
         case Role::HUMAN: return "Human";
         case Role::SOLDIER: return "Soldier";
@@ -98,26 +68,17 @@ string stringify(WeaponType weapon) {
     }
 }
 
-enum class MonsterType {
-    SLIME,
-    GOBLIN,
-    ORC,
-    DWARF,
-    GOLEM,
-    // Boss ones
-    DRAGON
-};
-
-class Weapon {
-private:
-    uint32_t damage;
-    double strength; // Multiplier
-    WeaponType type;
-public:
-    WeaponType get_type();
-    Weapon(WeaponType type);
-    uint32_t attack();
-};
+string stringify(MonsterType monster) {
+    switch (monster) {
+        case MonsterType::SLIME: return "Slime";
+        case MonsterType::DRAGON: return "Dragon";
+        case MonsterType::DWARF: return "Dwarf";
+        case MonsterType::GOBLIN: return "Goblin";
+        case MonsterType::GOLEM: return "Golem";
+        case MonsterType::ORC: return "Orc";
+        default: return "Error: unknown monster!";
+    }
+}
 
 WeaponType Weapon::get_type() {
     return this->type;
@@ -152,109 +113,62 @@ Weapon::Weapon(WeaponType type) : type(type) {
         case WeaponType::EXCALIBUR:
             this->damage = 60;
             this->strength = randnum(1.0, 2.0);
+            break;
+        default:
+            print_err("Unknown weapon type!");
     }
-    this->damage = 10;
-    this->strength = 1;
 }
 
-uint32_t Weapon::attack() {
-    return floor(damage * strength);
+uint32_t Weapon::attack(int bonus_strength) {
+    return floor(damage * (strength + bonus_strength));
 }
 
-enum class PotionEffect {
-    STRENGTH,
-    HEALING,
-    DEFENSE,
-    WATER
-};
+Potion::Potion(int potency, int duration) {
+    this->potency = potency;
+    this->duration = duration;
+}
 
-// Forward declaration of game so that it doesn't break when we reference game inside of potion.
-class Game;
+StrengthPotion::StrengthPotion(int potency, int duration) : Potion(potency, duration) {}
 
-class Potion {
-public:
-    int potency;
-    int duration;
-    // Unfortunately, we do still need get_type for printing and it would be more
-    // readable to have a function for this than rely on RTTI.
-    virtual PotionEffect get_type() = 0;
-    virtual void drink(Game* game) = 0;
-    Potion(int potency, int duration) {
-        this->potency = potency;
-        this->duration = duration;
-    }
-};
+PotionEffect StrengthPotion::get_type() {
+    return PotionEffect::STRENGTH;
+}
 
-class StrengthPotion : public Potion {
-public:
-    StrengthPotion(int potency, int duration) : Potion(potency, duration) {}
+void StrengthPotion::drink(Game* game) {
+    game->strength_bonus = 10 + 3 * potency;
+    game->potion_duration = duration;
+}
 
-    PotionEffect get_type() override {
-        return PotionEffect::STRENGTH;
-    }
+DefensePotion::DefensePotion(int potency, int duration) : Potion(potency, duration) {}
 
-    void drink(Game* game) override {
+PotionEffect DefensePotion::get_type() {
+    return PotionEffect::DEFENSE;
+}
 
-    }
-};
+void DefensePotion::drink(Game* game) {
+    game->defense_bonus = 5 + 2 * potency;
+    game->potion_duration = duration;
+}
 
-class DefensePotion : public Potion {
-public:
-    DefensePotion(int potency, int duration) : Potion(potency, duration) {}
+HealthPotion::HealthPotion(int potency) : Potion(potency, 0) {}
 
-    PotionEffect get_type() override {
-        return PotionEffect::DEFENSE;
-    }
+PotionEffect HealthPotion::get_type() {
+    return PotionEffect::HEALING;
+}
 
-    void drink(Game* game) override {
+void HealthPotion::drink(Game* game) {
+    game->health += 15 + 5 * potency;
+}
 
-    }
-};
+Water::Water() : Potion(0, 0) {}
 
-// Health and water all have a duration of 0, meaning that they are insta-use.
-class HealthPotion : public Potion {
-public:
-    HealthPotion(int potency) : Potion(potency, 0) {}
+PotionEffect Water::get_type() {
+    return PotionEffect::HEALING;
+}
 
-    PotionEffect get_type() override {
-        return PotionEffect::HEALING;
-    }
-
-    void drink(Game* game) override {
-
-    }
-};
-
-// Potency does not matter for water, nor does duration, because it's... well... water.
-class Water : public Potion {
-public:
-    Water() : Potion(0, 0) {}
-
-    PotionEffect get_type() override {
-        return PotionEffect::HEALING;
-    }
-
-    void drink(Game* game) override {
-
-    }
-};
-
-struct Loot {
-    int gold;
-    int heals;
-    optional<Weapon> weapon;
-    optional<Potion*> potion;
-};
-
-struct Monster {
-    MonsterType type;
-    int hp;
-    int dmg;
-    int level;
-    Monster(MonsterType monster, int level);
-    int attack();
-    optional<Loot> gets_hit(int dmg);
-};
+void Water::drink(Game* game) {
+    game->health += randint(5, 10);
+}
 
 Monster::Monster(MonsterType monster, int level) : type(monster), level(level) {
     switch (this->type) {
@@ -277,6 +191,10 @@ Monster::Monster(MonsterType monster, int level) : type(monster), level(level) {
         case MonsterType::GOLEM:
             this->hp = randint(50, 70);
             this->dmg = randint(25, 30);
+            break;
+        case MonsterType::DRAGON:
+            this->hp = randint(100, 150);
+            this->dmg = randint(40, 50);
             break;
         default:
             print_err("Error: unknown monster type!");
@@ -325,7 +243,7 @@ optional<Loot> Monster::gets_hit(int dmg) {
     // Dropped potion
     if (randint(1, 100) <= 10) {
         vector<uint32_t> potion_c = {30, 25, 20, 25};
-        PotionEffect potion_effect = static_cast<PotionEffect>(clamp(cumulative(potion_c), 0, 3));
+        PotionEffect potion_effect = static_cast<PotionEffect>(clamp(cumulative_rng(potion_c), 0, 3));
         Potion* potion;
         switch (potion_effect) {
             case PotionEffect::WATER: {
@@ -353,7 +271,7 @@ optional<Loot> Monster::gets_hit(int dmg) {
     // Dropped weapon (2%)
     if (randint(1, 100) <= 2) {
         vector<uint32_t> weapon_c = {0, 40, 30, 15, 9, 3, 3};
-        WeaponType weapon_t = static_cast<WeaponType>(clamp(cumulative(weapon_c), 0, 6));
+        WeaponType weapon_t = static_cast<WeaponType>(clamp(cumulative_rng(weapon_c), 0, 6));
         Weapon weapon(weapon_t);
         loot.weapon = weapon;
     }
@@ -373,72 +291,6 @@ string stringify(PotionEffect effect) {
     }
 }
 
-enum class RoomType {
-    NORMAL,
-    MONSTER,
-    BOSS,
-    TOWER,
-    TREASURE,
-    HEALING,
-    MERCHANT
-};
-
-struct Room {
-    RoomType room_type;
-    vector<Monster> monsters = {};
-    int gold = 0;
-    optional<Weapon> weapon = nullopt;
-    optional<Potion*> potion = nullopt;
-};
-
-class Game {
-private:
-    int gold;
-    int room;
-    int health;
-    int max_health;
-    int monsters_killed;
-    int score;
-    int defense;
-    int intellect;
-    uint8_t strength_duration;
-    Room current_room;
-    Alignment alignment;
-    Role role;
-    Weapon weapon;
-    vector<Potion*> potions;
-    
-    void generate_room();
-    void init_normal_room();
-    void generate_boss_room();
-    void generate_monster_room();
-    void generate_healing();
-    void generate_treasure();
-    void generate_merchant();
-    void shop();
-    void gamble();
-    void weapon_menu();
-    void potion_menu();
-    void buy_stone_sword();
-    void buy_iron_sword();
-    void buy_enchant_sword();
-    void buy_wizard_staff();
-    void buy_shadow_scythe();
-    void buy_excalibur();
-    void buy_water();
-    void buy_healing();
-    void buy_strength();
-    void buy_defense();
-    void use_item();
-    optional<Loot> fight(Monster& monster);
-    bool can_afford(int amnt);
-    bool is_full_hp();
-public:
-    Game(Alignment alignment, Role role);
-    RoundResult next_room();
-    int get_room();
-};
-
 Game::Game(Alignment alignment, Role role)
     : weapon(WeaponType::WOODEN_SWORD),
       alignment(alignment),
@@ -449,14 +301,17 @@ Game::Game(Alignment alignment, Role role)
       gold(10),
       max_health(100),
       intellect(3),
-      defense(0)
+      defense(1),
+      defense_bonus(0),
+      potion_duration(0),
+      strength_bonus(0)
 {
     switch (this->role) {
         case Role::ADVENTURER:
             this->gold += 10;
             break;
         case Role::DOCTOR:
-            this->max_health += 25;
+            this->max_health += 2500;
             break;
         case Role::WIZARD:
             this->intellect += 2;
@@ -498,11 +353,6 @@ int Game::get_room() {
     return this->room;
 }
 
-struct RoomProbability {
-    RoomType room;
-    int probability;
-};
-
 void Game::generate_healing() {
     constexpr int HEAL_AMOUNT = 30;
     constexpr int MONSTER_SPAWN_CHANCE = 25;
@@ -515,7 +365,7 @@ void Game::generate_healing() {
     this->health = clamp(this->health + HEAL_AMOUNT, 0, this->max_health);
 
     // Healing potion spawn
-    if (randint(1, 100 <= 30)) {
+    if (randint(1, 100) <= 30) {
         print("There is a healing potion.");
         Potion* healing_potion = new HealthPotion(2);
         this->current_room.potion = healing_potion;
@@ -528,7 +378,7 @@ void Game::generate_healing() {
 
     print("Unfortunately, there seems to be an uninvited guest lurking around...");
     vector<uint32_t> monster_chance_table = {80, 10, 5, 3, 2};
-    MonsterType monster_t = static_cast<MonsterType>(clamp(cumulative(monster_chance_table), 0, 4));
+    MonsterType monster_t = static_cast<MonsterType>(clamp(cumulative_rng(monster_chance_table), 0, 4));
     Monster monster(monster_t, 1);
     this->current_room.monsters.push_back(monster);
 }
@@ -541,7 +391,7 @@ void Game::generate_treasure() {
     if (randint(1, 100) <= 20) {
         print("A weapon lies in the pile of gold. How serendipitous!");
         vector<uint32_t> weapon_chances = {0, 30, 40, 20, 5, 5};
-        int weapon_index = clamp(cumulative(weapon_chances), 0, 5);
+        int weapon_index = clamp(cumulative_rng(weapon_chances), 0, 5);
         WeaponType weapon_type = static_cast<WeaponType>(weapon_index);
         Weapon weapon(weapon_type);
         this->current_room.weapon = weapon;
@@ -559,10 +409,10 @@ void Game::init_normal_room() {
     // are more than 2 possible values.
     vector<uint32_t> monster_amnt_chances = {30, 30, 20, 10, 7, 2, 1};
     vector<uint32_t> monster_chances = {40, 30, 15, 10, 5};
-    int monster_amnt = cumulative(monster_amnt_chances);
+    int monster_amnt = cumulative_rng(monster_amnt_chances);
     for (int i = 0; i < monster_amnt; i++) {
         // Clamp it so that it's 0-4 just in case it returns -1 or >4
-        MonsterType monster_type = static_cast<MonsterType>(clamp(cumulative(monster_chances), 0, 4));
+        MonsterType monster_type = static_cast<MonsterType>(clamp(cumulative_rng(monster_chances), 0, 4));
         Monster monster(monster_type, 1);
         current_room.monsters.push_back(monster);
     }
@@ -570,14 +420,14 @@ void Game::init_normal_room() {
     // 25% chance for the room to have heals
     if (randint(1, 100) <= 25) {
         print("This room, though unfamilar, seems strangely soothing.");
-        this->health = randint(5, 15);
+        this->health = clamp(this->health += randint(5, 15), 0, max_health);
     }
 
     // 3% chance for the room to have a weapon
     if (randint(1, 100) <= 3) {
         print("You feel a stroke of luck and see a shiny new weapon in the room.");
         vector<uint32_t> weapon_chances = {0, 40, 30, 20, 8, 1, 1};
-        current_room.weapon = Weapon(static_cast<WeaponType>(clamp(cumulative(weapon_chances), 0, 6)));
+        current_room.weapon = Weapon(static_cast<WeaponType>(clamp(cumulative_rng(weapon_chances), 0, 6)));
     }
 }
 
@@ -596,8 +446,8 @@ void Game::generate_monster_room() {
     // of monsters, we add it to monster_count due to cumulative only giving the index.
     vector<uint32_t> monster_amnt_chances = {40, 30, 15, 10, 4, 1};
     vector<uint32_t> monster_chances = {30, 30, 15, 10, 10, 5};
-    int monster_amount = cumulative(monster_amnt_chances) + MIN_MONSTER_AMOUNT;
-    MonsterType chosen_monster_type = static_cast<MonsterType>(clamp(cumulative(monster_chances), 0, 5));
+    int monster_amount = cumulative_rng(monster_amnt_chances) + MIN_MONSTER_AMOUNT;
+    MonsterType chosen_monster_type = static_cast<MonsterType>(clamp(cumulative_rng(monster_chances), 0, 5));
     Monster monster(chosen_monster_type, 2);
     for (int i = 0; i < monster_amount; i++) {
         this->current_room.monsters.push_back(monster);
@@ -632,6 +482,7 @@ void Game::generate_room() {
     if (this->room % 10 == 0) {
         this->current_room = {RoomType::MERCHANT};
         this->generate_merchant();
+        return;
     }
 
     if (this->room % 7 == 0) {
@@ -684,7 +535,6 @@ void Game::gamble() {
     
     while (!is_valid_input) {
         string input;
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
         getline(cin, input);
         int bet_input; // May be negative, so it's temporary
         
@@ -938,7 +788,6 @@ void Game::shop() {
         print("3. Gamble");
         print("4. Exit (next room)");
         print("(Default: 3, clamped if it isn't 1-4)");
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
         string input;
         getline(cin, input);
         int choice;
@@ -973,93 +822,80 @@ void Game::shop() {
 optional<Loot> Game::fight(Monster& monster) {
     while (this->health > 0) {
         // Player hits first, then monster
-        uint32_t player_hit = this->weapon.attack();
+        uint32_t player_hit = this->weapon.attack(this->strength_bonus);
         optional<Loot> status = monster.gets_hit(player_hit);
         if (status != nullopt) {
             return status;
         }
-        this->health -= monster.attack() / this->defense;
+        this->health -= monster.attack() / ((defense + defense_bonus == 0) ? 1 : defense + defense_bonus);
     }
     // Player dies
     return nullopt;
 }
 
-void Game::use_item() {
-    print("Items:");
-    for (int i = 0; i < this->potions.size(); i++) {
-        Potion* potion = this->potions[i];
-        // std::vector uses 0 based indexing, but lists starting at 0 would be
-        // weird to read, we adjust the value by +1 so that it looks better
-        print(to_string(i + 1) + ": " + stringify(potion->get_type()));
-    }
-
-    int potion_input;
-    string raw_input;
-    getline(cin, raw_input);
-    try {
-        potion_input = stoi(raw_input);
-    } catch (invalid_argument& e) {
-        potion_input = 0;
-    }
-
-    Potion* selected_potion = this->potions[potion_input];
-}
-
 RoundResult Game::next_room() {
     this->room++;
+    if (this->potion_duration-- == 1) {
+        if (this->strength_bonus > 0) {
+            print("Your strength bonus from drinking a strength potion has ran out.");
+            strength_bonus = 0;
+        }
+        if (this->defense_bonus > 0) {
+            print("Your defense bonus from drinking a defense potion has ran out.");
+            defense_bonus = 0;
+        }
+    }
+    // Prevent it from being negative (100 is just a "big number" to place the MAX in).
+    this->potion_duration = clamp(potion_duration, 0, 100);
     print(ANSI_BOLD "=== Room " + to_string(this->room) + " ===" ANSI_DEFAULT);
     print();
-    print("Health: " + to_string(this->health));
-    print("Gold: " + to_string(this->gold));
-    print("Defense: +" + to_string(this->defense));
+    print(format("Health: {}", this->health));
+    print(format("Gold: {}", this->gold));
+    print(format("Defense: +{} (+{} bonus)", this->defense + this->defense_bonus, this->defense_bonus));
     print("Intellect: +" + to_string(this->intellect));
     print(stringify(this->alignment) + " " + stringify(this->role));
     this->generate_room();
 
     if (this->current_room.room_type == RoomType::MERCHANT) {
         this->shop();
+#ifdef WIN32
+        print("Press any key to continue...");
+        _getch();
+#endif
         return RoundResult::NOTHING;
     }
     
+    print("Potions: ");
     for (int i = 0; i < potions.size(); i++) {
         Potion* potion = potions[i];
-        print(to_string(i) + ". " + stringify(potion->get_type()));
+        print(to_string(i + 1) + ". " + stringify(potion->get_type()));
     }
 
-    print("Which potion to drink? (Not a valid one = don't drink potion)");
     string option;
-    getline(cin, option);
+    if (potion_duration > 0) {
+        option = "-1";
+        print("You already have an active effect, so you cannot drink another potion.");
+    } else {
+        print("Which potion number do you want to drink? (no number = don't drink)");
+        getline(cin, option);
+    }
+
     int potion_index;
     try {
-        potion_index = stoi(option);
+        potion_index = stoi(option) - 1;
     } catch (invalid_argument& e) {
         potion_index = -1;
     }
 
-    if (potion_index < potions.size() && potion_index != -1) {
-        
-    }
-
-    print();
-    print("Options");
-    print("1. Use an item");
-    print("2. Continue");
-    print("(Default is 2 if input is invalid)");
-    int input_number;
-    string raw_input;
-    getline(cin, raw_input);
-
-    try {
-        input_number = stoi(raw_input);
-    } catch (invalid_argument& e) {
-        input_number = 2;
-    }
-
-    if (input_number == 1) {
-        this->use_item();
+    if (potion_index < potions.size() && potion_index > -1) {
+        Potion* potion = this->potions[potion_index];
+        potion->drink(this);
+        delete potion;
+        this->potions.erase(this->potions.begin() + potion_index);
     }
 
     for (int i = 0; i < current_room.monsters.size(); i++) {
+        print(format("There is a {} here.", stringify(current_room.monsters[i].type)));
         optional<Loot> result = this->fight(current_room.monsters[i]);
         if (result == nullopt) {
             return RoundResult::DIED;
@@ -1087,7 +923,7 @@ RoundResult Game::next_room() {
     }
 
     if (current_room.gold > 0) {
-        print("You found " + to_string(current_room.gold) + " in this room.");
+        print("You found " + to_string(current_room.gold) + " gold in this room.");
         this->gold += current_room.gold;
     }
 
@@ -1102,6 +938,11 @@ RoundResult Game::next_room() {
         print("You found a " + stringify(current_room.weapon.value().get_type()));
         this->weapon = current_room.weapon.value();
     }
+
+#ifdef WIN32
+    print("Press any key to continue...");
+    _getch();
+#endif
 
     constexpr int BARELY_SURVIVED_THRESHOLD = 5;
     if (this->health <= BARELY_SURVIVED_THRESHOLD) {
