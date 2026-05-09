@@ -325,7 +325,7 @@ Game::Game(Alignment alignment, Role role)
             break;
         case Role::CEO:
             this->gold += 50;
-            this->intellect -= 99;
+            this->intellect -= 3;
             break;
         case Role::PROGRAMMER:
             this->intellect += 5;
@@ -337,9 +337,8 @@ Game::Game(Alignment alignment, Role role)
             this->max_health -= 20;
             break;
         case Role::IDIOT:
-            this->max_health -= 99;
-            this->intellect -= 100;
-            this->defense -= 100;
+            this->max_health -= 80;
+            this->intellect -= 3;
             this->gold -= 100;
             break;
         default:
@@ -445,9 +444,9 @@ void Game::generate_monster_room() {
     // It's a monster room, since there will always be at least MIN_MONSTER_AMOUNT
     // of monsters, we add it to monster_count due to cumulative only giving the index.
     vector<uint32_t> monster_amnt_chances = {40, 30, 15, 10, 4, 1};
-    vector<uint32_t> monster_chances = {30, 30, 15, 10, 10, 5};
+    vector<uint32_t> monster_chances = {30, 30, 15, 15, 10};
     int monster_amount = cumulative_rng(monster_amnt_chances) + MIN_MONSTER_AMOUNT;
-    MonsterType chosen_monster_type = static_cast<MonsterType>(clamp(cumulative_rng(monster_chances), 0, 5));
+    MonsterType chosen_monster_type = static_cast<MonsterType>(clamp(cumulative_rng(monster_chances), 0, 4));
     Monster monster(chosen_monster_type, 2);
     for (int i = 0; i < monster_amount; i++) {
         this->current_room.monsters.push_back(monster);
@@ -868,7 +867,17 @@ RoundResult Game::next_room() {
     print("Potions: ");
     for (int i = 0; i < potions.size(); i++) {
         Potion* potion = potions[i];
-        print(to_string(i + 1) + ". " + stringify(potion->get_type()));
+        // Can see duration and potency
+        if (intellect > 7) {
+            print(format("{}. {} ({} duration, {} potency)", i+1, stringify(potion->get_type()), potion->duration, potion->potency));
+        } else if (intellect > 3) {
+        // Can see duration but not potency
+            print(format("{}. {} ({} duration)", i+1, stringify(potion->get_type()), potion->duration));
+        } else if (intellect > 0) {
+            print(to_string(i + 1) + ". " + stringify(potion->get_type()));
+        } else {
+            print(format("{}. Unknown potion", i+1));
+        }
     }
 
     string option;
@@ -894,8 +903,49 @@ RoundResult Game::next_room() {
         this->potions.erase(this->potions.begin() + potion_index);
     }
 
+    unordered_map<MonsterType, int> monster_count;
+    int potential_runaway_damage = 0;
+
+    for (Monster monster : current_room.monsters) {
+        potential_runaway_damage += monster.level;
+        MonsterType monster_type = monster.type;
+        monster_count[monster_type]++;
+    }
+
+    for (auto monster_type : monster_count) {
+        print(format("{}There are {} {}(s) in this room.{}", ANSI_RED, monster_type.second, stringify(monster_type.first), ANSI_DEFAULT));
+    }
+
+    string fight_input;
+    int fight_option;
+
+    if (current_room.monsters.size() == 0) {
+        print("Fortunately, there are no monsters in this room.");
+        goto loot;
+    }
+
+    print("1. Run away from the monster(s)");
+    print("2. Fight all of them.");
+    print("Default: fight");
+    getline(cin, fight_input);
+    try {
+        fight_option = stoi(fight_input);
+    } catch (invalid_argument& e) {
+        fight_option = 2;
+    }
+    fight_option = clamp(fight_option, 1, 2);
+
+    if (fight_option == 1) {
+        print("You ran away from the monsters.");
+        if (randint(1, 100) >= 50) {
+            print(format("You accidentally tripped while running and lost {} health.", potential_runaway_damage));
+            health -= potential_runaway_damage;
+            if (health <= 0) return RoundResult::DIED;
+        }
+        goto end_battle;
+    }
+
     for (int i = 0; i < current_room.monsters.size(); i++) {
-        print(format("There is a {} here.", stringify(current_room.monsters[i].type)));
         optional<Loot> result = this->fight(current_room.monsters[i]);
         if (result == nullopt) {
             return RoundResult::DIED;
@@ -917,18 +967,19 @@ RoundResult Game::next_room() {
         }
         if (loot.potion != nullopt) {
             print("The monster also dropped a potion");
-            print("Dropped potion: " + stringify(loot.potion.value()->get_type()));
+            if (intellect > 0) print("Dropped potion: " + stringify(loot.potion.value()->get_type()));
             this->potions.push_back(loot.potion.value());
         }
     }
-
+loot:
     if (current_room.gold > 0) {
         print("You found " + to_string(current_room.gold) + " gold in this room.");
         this->gold += current_room.gold;
     }
 
     if (current_room.potion != nullopt) {
-        print("You found a " + stringify(current_room.potion.value()->get_type()));
+        print("The room contained a potion.");
+        if (intellect > 0) print("It was a " + stringify(current_room.potion.value()->get_type()));
         this->potions.push_back(current_room.potion.value());
     }
 
@@ -938,6 +989,7 @@ RoundResult Game::next_room() {
         print("You found a " + stringify(current_room.weapon.value().get_type()));
         this->weapon = current_room.weapon.value();
     }
+end_battle:
 
 #ifdef WIN32
     print("Press any key to continue...");
