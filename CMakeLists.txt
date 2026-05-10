@@ -3,18 +3,22 @@ project(MyProject)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE Release)
 
 add_executable(main
     main.cpp
     frank-roasting.cpp
     blackjack.cpp
     dungeon.cpp
-    hack.cpp
 )
 
 if(WIN32 AND NOT MSVC)
     target_compile_options(main PRIVATE)
-    target_link_options(main PRIVATE)
+    target_link_options(main PRIVATE
+        -static
+        -static-libgcc
+        -static-libstdc++
+    )
 endif()
 
 if (UNIX AND NOT APPLE)

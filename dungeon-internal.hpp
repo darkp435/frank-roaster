@@ -146,6 +146,11 @@ struct Room {
     optional<Potion*> potion = nullopt;
 };
 
+struct RoomBias {
+    RoomType room_type;
+    int bias;
+};
+
 class Game {
 private:
     int gold;
@@ -159,6 +164,7 @@ private:
     int strength_bonus;
     int potion_duration;
     int intellect;
+    optional<RoomBias> room_bias;
     Room current_room;
     Alignment alignment;
     Role role;
@@ -170,6 +176,7 @@ private:
     friend class Water;
     friend class DefensePotion;
     void init_normal_room();
+    void choose_room();
     void generate_boss_room();
     void generate_monster_room();
     void generate_healing();

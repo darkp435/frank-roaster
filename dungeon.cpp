@@ -304,7 +304,8 @@ Game::Game(Alignment alignment, Role role)
       defense(1),
       defense_bonus(0),
       potion_duration(0),
-      strength_bonus(0)
+      strength_bonus(0),
+      room_bias(nullopt)
 {
     switch (this->role) {
         case Role::ADVENTURER:
@@ -356,7 +357,7 @@ void Game::generate_healing() {
     constexpr int HEAL_AMOUNT = 30;
     constexpr int MONSTER_SPAWN_CHANCE = 25;
 
-    print("This is a rather pleasant room. Odd...");
+    print(ANSI_GREEN "This is a rather pleasant room. Odd..." ANSI_GREEN);
     if (this->health < this->max_health) {
         print("You feel your wounds magically get sealed.");
     }
@@ -438,7 +439,7 @@ void Game::generate_boss_room() {
 }
 
 void Game::generate_monster_room() {
-    print("The air is filled with a stench reminiscent of monsters...");
+    print(ANSI_BOLD "The air is filled with a stench reminiscent of monsters..." ANSI_BOLD);
     print("They crave your flesh.");
     constexpr int MIN_MONSTER_AMOUNT = 4;
     // It's a monster room, since there will always be at least MIN_MONSTER_AMOUNT
@@ -458,7 +459,7 @@ inline bool Game::is_full_hp() {
 }
 
 void Game::generate_merchant() {
-    print("Ah! A friendly face at last!");
+    print(ANSI_BLUE "Ah! A friendly face at last!" ANSI_BLUE);
     if (!is_full_hp()) {
         print("Just from the atmosphere, your wounds start to recover.");
         this->health = clamp(this->health + 20, 1, this->max_health);
@@ -490,12 +491,74 @@ void Game::generate_room() {
         return;
     }
 
-    vector<RoomProbability> room_table = {
-        {RoomType::NORMAL, 70},
-        {RoomType::HEALING, 15},
-        {RoomType::TREASURE, 10},
-        {RoomType::MONSTER, 5}
-    };
+    vector<RoomProbability> room_table;
+    if (room_bias == nullopt) {
+        room_table = {
+            {RoomType::NORMAL, 70},
+            {RoomType::HEALING, 15},
+            {RoomType::TREASURE, 10},
+            {RoomType::MONSTER, 5}
+        };
+    } else {
+        RoomBias rbias = room_bias.value();
+        if (rbias.room_type == RoomType::HEALING && rbias.bias == 1) {
+            room_table = {
+                {RoomType::NORMAL, 50},
+                {RoomType::HEALING, 30},
+                {RoomType::TREASURE, 10},
+                {RoomType::MONSTER, 10}
+            };
+        } else if (rbias.room_type == RoomType::HEALING && rbias.bias == 2) {
+            room_table = {
+                {RoomType::HEALING, 50},
+                {RoomType::NORMAL, 40},
+                {RoomType::TREASURE, 6},
+                {RoomType::MONSTER, 4}
+            };
+        } else if (rbias.room_type == RoomType::MONSTER && rbias.bias == 1) {
+            room_table = {
+                {RoomType::NORMAL, 60},
+                {RoomType::MONSTER, 35},
+                {RoomType::TREASURE, 3},
+                {RoomType::HEALING, 2}
+            };
+        } else if (rbias.room_type == RoomType::MONSTER && rbias.bias == 2) {
+            room_table = {
+                {RoomType::MONSTER, 50},
+                {RoomType::NORMAL, 40},
+                {RoomType::TREASURE, 5},
+                {RoomType::HEALING, 5}
+            };
+        } else if (rbias.room_type == RoomType::TREASURE && rbias.bias == 1) {
+            room_table = {
+                {RoomType::NORMAL, 60},
+                {RoomType::TREASURE, 20},
+                {RoomType::HEALING, 10},
+                {RoomType::MONSTER, 10}
+            };
+        } else if (rbias.room_type == RoomType::TREASURE && rbias.bias == 2) {
+            room_table = {
+                {RoomType::NORMAL, 50},
+                {RoomType::TREASURE, 30},
+                {RoomType::MONSTER, 15},
+                {RoomType::HEALING, 5}
+            };
+        } else if (rbias.room_type == RoomType::NORMAL && rbias.bias == 1) {
+            room_table = {
+                {RoomType::NORMAL, 80},
+                {RoomType::MONSTER, 10},
+                {RoomType::TREASURE, 5},
+                {RoomType::HEALING, 5}
+            };
+        } else if (rbias.room_type == RoomType::NORMAL && rbias.bias == 2) {
+            room_table = {
+                {RoomType::NORMAL, 85},
+                {RoomType::MONSTER, 5},
+                {RoomType::TREASURE, 5},
+                {RoomType::HEALING, 5}
+            };
+        }
+    }
     
     int room_rnd_number = randint(1, 100);
     int cumulative = 0;
@@ -832,6 +895,99 @@ optional<Loot> Game::fight(Monster& monster) {
     return nullopt;
 }
 
+RoomBias gen_room_bias() {
+    // Four possible rooms with room bias are healing, normal, treasure and monster.
+    RoomBias room_bias;
+    int val = randint(1, 4);
+    switch (val) {
+        case 1:
+            room_bias.room_type = RoomType::HEALING;
+            break;
+        case 2:
+            room_bias.room_type = RoomType::NORMAL;
+            break;
+        case 3:
+            room_bias.room_type = RoomType::MONSTER;
+            break;
+        case 4:
+            room_bias.room_type = RoomType::TREASURE;
+            break;
+        default:
+            print_err("Error: room_bias value is not valid.");
+    }
+    room_bias.bias = randint(1, 2);
+    return room_bias;
+}
+
+void print_room_bias(optional<RoomBias>& bias, string direction) {
+    if (bias == nullopt) return;
+    RoomBias rbias = bias.value();
+    if (rbias.room_type == RoomType::TREASURE && rbias.bias == 1)
+        print(format("You hear sparkling to the {} direction.", direction));
+    else if (rbias.room_type == RoomType::TREASURE && rbias.bias == 2)
+        print(format("You see sparkling bright colors on the {}.", direction));
+    else if (rbias.room_type == RoomType::HEALING && rbias.bias == 1)
+        print(format("Looking at the {} pathway makes you relax a little.", direction));
+    else if (rbias.room_type == RoomType::HEALING && rbias.bias == 2)
+        print(format("The more you move closer to the {}, the more your body soothes.", direction));
+    else if (rbias.room_type == RoomType::MONSTER && rbias.bias == 1)
+        print(format("You hear growling to the {}.", direction));
+    else if (rbias.room_type == RoomType::MONSTER && rbias.bias == 2)
+        print(format("The echoes of loud growling resonates to the {}.", direction));
+    else if (rbias.room_type == RoomType::NORMAL && rbias.bias == 1)
+        print(format("The path to the {} looks slightly more ordinary than usual.", direction));
+    else if (rbias.room_type == RoomType::NORMAL && rbias.bias == 2)
+        print(format("You hear the ambiance of typical dungeons distinctly to the {}.", direction));
+    else
+        print_err("Error: room_bias.bias or room_bias.room_type is invalid!");
+}
+
+// This makes the player choose the direction that they are going and modifies room_bias accordingly.
+// It does NOT generate a room.
+void Game::choose_room() {
+    // It happens next room, so we need to first check if the room is eligible for player choosing (i.e. non-special room).
+    int target_room = room + 1;
+    if (target_room % 7 == 0 || target_room % 20 == 0 || target_room % 10 == 0) {
+        print("There is only one possible pathway you can go.");
+        room_bias = nullopt;
+#ifdef WIN32
+        print("Press any key to continue...");
+        _getch();
+#endif
+        return;
+    }
+
+    // 1 means left has hint, 3 means right has hint, 2 means both has hint
+    int hint = randint(1, 3);
+    optional<RoomBias> left_room_bias;
+    optional<RoomBias> right_room_bias;
+    if (hint == 1) {
+        left_room_bias = gen_room_bias();
+    } else if (hint == 2) {
+        left_room_bias = gen_room_bias();
+        right_room_bias = gen_room_bias();
+    } else {
+        right_room_bias = gen_room_bias();
+    }
+
+    print_room_bias(left_room_bias, "left");
+    print_room_bias(right_room_bias, "right");
+    print("Which direction would you like to go?");
+    print("1. Left");
+    print("2. Right");
+    print("Default: random");
+    string input;
+    int direction;
+    getline(cin, input);
+    try {
+        direction = stoi(input);
+    } catch (invalid_argument& e) {
+        direction = randint(1, 2);
+    }
+    direction = clamp(direction, 1, 2);
+    direction == 1 ? room_bias = left_room_bias : room_bias = right_room_bias;
+}
+
 RoundResult Game::next_room() {
     this->room++;
     if (this->potion_duration-- == 1) {
@@ -857,10 +1013,7 @@ RoundResult Game::next_room() {
 
     if (this->current_room.room_type == RoomType::MERCHANT) {
         this->shop();
-#ifdef WIN32
-        print("Press any key to continue...");
-        _getch();
-#endif
+        choose_room();
         return RoundResult::NOTHING;
     }
     
@@ -873,7 +1026,7 @@ RoundResult Game::next_room() {
         } else if (intellect > 3) {
         // Can see duration but not potency
             print(format("{}. {} ({} duration)", i+1, stringify(potion->get_type()), potion->duration));
-        } else if (intellect > 0) {
+        } else if (intellect > 1) {
             print(to_string(i + 1) + ". " + stringify(potion->get_type()));
         } else {
             print(format("{}. Unknown potion", i+1));
@@ -966,7 +1119,7 @@ RoundResult Game::next_room() {
             this->weapon = new_weapon;
         }
         if (loot.potion != nullopt) {
-            print("The monster also dropped a potion");
+            print("One of the monster also dropped a potion");
             if (intellect > 0) print("Dropped potion: " + stringify(loot.potion.value()->get_type()));
             this->potions.push_back(loot.potion.value());
         }
@@ -990,12 +1143,7 @@ loot:
         this->weapon = current_room.weapon.value();
     }
 end_battle:
-
-#ifdef WIN32
-    print("Press any key to continue...");
-    _getch();
-#endif
-
+    choose_room();
     constexpr int BARELY_SURVIVED_THRESHOLD = 5;
     if (this->health <= BARELY_SURVIVED_THRESHOLD) {
         return RoundResult::BARELY_SURVIVED;
